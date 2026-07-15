@@ -1,0 +1,19 @@
+[versions]
+kotlin = "2.1.0"
+compose = "1.7.3"
+oshi = "6.6.5"
+pty4j = "0.13.12"
+jediterm = "3.49"
+lwjgl = "3.3.4"
+
+[libraries]
+oshi-core = { module = "com.github.oshi:oshi-core", version.ref = "oshi" }
+pty4j = { module = "org.jetbrains.pty4j:pty4j", version.ref = "pty4j" }
+jediterm-core = { module = "org.jetbrains.jediterm:jediterm-core", version.ref = "jediterm" }
+jediterm-ui = { module = "org.jetbrains.jediterm:jediterm-ui", version.ref = "jediterm" }
+lwjgl-bom = { module = "org.lwjgl:lwjgl-bom", version.ref = "lwjgl" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+compose = { id = "org.jetbrains.compose", version.ref = "compose" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

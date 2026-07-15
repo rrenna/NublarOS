@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# ParkNet Terminal login banner (MOTD). See README "Terminal Design".
+set -euo pipefail
+
+HOSTNAME_LABEL="${NUBLAR_HOSTNAME_LABEL:-VISITOR.CENTER}"
+USER_LABEL="${NUBLAR_USER_LABEL:-OPERATIONS}"
+
+FAILED_COUNT=0
+if command -v systemctl >/dev/null 2>&1; then
+  FAILED_COUNT="$(systemctl --failed --no-legend 2>/dev/null | wc -l | tr -d ' ')"
+fi
+
+cat <<BANNER
+NUBLAROS PARK SYSTEMS COMMAND INTERFACE
+NODE: ${HOSTNAME_LABEL}
+USER: ${USER_LABEL}
+COMMUNICATION LINK: ACTIVE
+
+SYSTEM SECURED
+7 PADDOCK SYSTEMS ONLINE
+4 TOUR VEHICLES ACTIVE
+${FAILED_COUNT} CRITICAL GLITCHES
+BANNER

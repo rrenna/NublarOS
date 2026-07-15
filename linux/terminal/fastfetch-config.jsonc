@@ -1,0 +1,27 @@
+// ParkNet Terminal fastfetch config — used by the `park-status` alias.
+// Install to ~/.config/fastfetch/config.jsonc
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "type": "none"
+  },
+  "display": {
+    "separator": " : "
+  },
+  "modules": [
+    {
+      "type": "custom",
+      "format": "NUBLAROS PARK SYSTEMS COMMAND INTERFACE"
+    },
+    "break",
+    { "type": "os", "key": "PARK SYSTEM" },
+    { "type": "kernel", "key": "CORE VERSION" },
+    { "type": "uptime", "key": "PARK RUNTIME" },
+    { "type": "packages", "key": "SYSTEM PROVISIONING" },
+    { "type": "de", "key": "SECTOR SHELL" },
+    { "type": "cpu", "key": "MAIN GRID LOAD" },
+    { "type": "memory", "key": "OPERATIONS MEMORY" },
+    { "type": "disk", "key": "MINI ARRAY CAPACITY" },
+    { "type": "localip", "key": "PARKNET ADDRESS" }
+  ]
+}
