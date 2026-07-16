@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
@@ -55,6 +54,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import os.nublar.dashboard.ui.map.MapViewport
 import os.nublar.designsystem.NublarColors
 import os.nublar.designsystem.NublarType
 
@@ -89,6 +89,51 @@ internal fun Modifier.bevelBorder(
 }
 
 /**
+ * Draggable two-pane split row, shared by every screen so the divider
+ * position is one piece of hoisted state (see Main.kt) that stays put when
+ * switching between screens instead of resetting to each screen's default.
+ */
+@Composable
+internal fun DraggableSplitRow(
+    modifier: Modifier = Modifier,
+    splitFraction: Float,
+    onSplitFractionChange: (Float) -> Unit,
+    minPaneWidth: androidx.compose.ui.unit.Dp = 220.dp,
+    left: @Composable (Modifier) -> Unit,
+    right: @Composable (Modifier) -> Unit,
+) {
+    BoxWithConstraints(modifier = modifier) {
+        val density = LocalDensity.current
+        val dividerWidth = 10.dp
+        val totalWidthPx = with(density) { maxWidth.toPx() }
+        val dividerWidthPx = with(density) { dividerWidth.toPx() }
+        val minPaneWidthPx = with(density) { minPaneWidth.toPx() }
+        val maxLeftWidthPx = (totalWidthPx - dividerWidthPx - minPaneWidthPx).coerceAtLeast(minPaneWidthPx)
+        val leftWidthPx = (totalWidthPx * splitFraction).coerceIn(minPaneWidthPx, maxLeftWidthPx)
+
+        Row(modifier = Modifier.fillMaxSize()) {
+            left(Modifier.width(with(density) { leftWidthPx.toDp() }).fillMaxHeight())
+            Box(
+                modifier = Modifier
+                    .width(dividerWidth)
+                    .fillMaxHeight()
+                    .padding(horizontal = 3.dp)
+                    .background(NublarColors.DarkFrame)
+                    .pointerHoverIcon(PointerIcon.Hand)
+                    .draggable(
+                        orientation = Orientation.Horizontal,
+                        state = rememberDraggableState { delta ->
+                            val newLeftPx = (leftWidthPx + delta).coerceIn(minPaneWidthPx, maxLeftWidthPx)
+                            onSplitFractionChange(newLeftPx / totalWidthPx)
+                        },
+                    ),
+            )
+            right(Modifier.weight(1f).fillMaxHeight())
+        }
+    }
+}
+
+/**
  * Close recreation of the film's control-room "SYSTEM SECURED" plan-view
  * screen. See README "Legal and Asset Guidelines" for the fair-use/parody
  * basis for this direct recreation. The floor plan itself is an original
@@ -96,7 +141,12 @@ internal fun Modifier.bevelBorder(
  * shapes) rather than a traced copy of the film's actual vector artwork.
  */
 @Composable
-fun ControlRoomPlanView(onClose: () -> Unit, onSwitchScreen: () -> Unit = {}) {
+fun ControlRoomPlanView(
+    onClose: () -> Unit,
+    onSwitchScreen: () -> Unit = {},
+    splitFraction: Float = 0.535f,
+    onSplitFractionChange: (Float) -> Unit = {},
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -104,43 +154,13 @@ fun ControlRoomPlanView(onClose: () -> Unit, onSwitchScreen: () -> Unit = {}) {
             .padding(16.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                val density = LocalDensity.current
-                val dividerWidth = 10.dp
-                val minPaneWidth = 220.dp
-                val totalWidthPx = with(density) { maxWidth.toPx() }
-                val dividerWidthPx = with(density) { dividerWidth.toPx() }
-                val minPaneWidthPx = with(density) { minPaneWidth.toPx() }
-                var leftWidthPx by remember(totalWidthPx) {
-                    mutableStateOf((totalWidthPx - dividerWidthPx) * 0.535f)
-                }
-                val maxLeftWidthPx = (totalWidthPx - dividerWidthPx - minPaneWidthPx).coerceAtLeast(minPaneWidthPx)
-                leftWidthPx = leftWidthPx.coerceIn(minPaneWidthPx, maxLeftWidthPx)
-
-                Row(modifier = Modifier.fillMaxSize()) {
-                    FloorPlanPanel(
-                        modifier = Modifier.width(with(density) { leftWidthPx.toDp() }).fillMaxHeight(),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(dividerWidth)
-                            .fillMaxHeight()
-                            .padding(horizontal = 3.dp)
-                            .background(NublarColors.DarkFrame)
-                            .pointerHoverIcon(PointerIcon.Hand)
-                            .draggable(
-                                orientation = Orientation.Horizontal,
-                                state = rememberDraggableState { delta ->
-                                    leftWidthPx = (leftWidthPx + delta).coerceIn(minPaneWidthPx, maxLeftWidthPx)
-                                },
-                            ),
-                    )
-                    RightColumn(
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClose = onClose,
-                    )
-                }
-            }
+            DraggableSplitRow(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                splitFraction = splitFraction,
+                onSplitFractionChange = onSplitFractionChange,
+                left = { m -> FloorPlanPanel(modifier = m) },
+                right = { m -> RightColumn(modifier = m, onClose = onClose) },
+            )
             BottomBar(screenLabel = "Isla Nublar, Costa Rica", onScreenClick = onSwitchScreen)
         }
     }
@@ -160,20 +180,18 @@ private fun FloorPlanPanel(modifier: Modifier = Modifier) {
                 SidewaysSecuredLabel(modifier = Modifier.fillMaxHeight().width(22.dp))
                 Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                     SystemSecuredBanner()
-                    val horizontalScroll = rememberScrollState()
-                    val verticalScroll = rememberScrollState()
-                    Box(
+                    // Rendered larger than the viewport so there's room to pan
+                    // around the plan (right-mouse drag) like panning a real
+                    // drawing under a fixed screen.
+                    MapViewport(
+                        contentWidth = 1600.dp,
+                        contentHeight = 1600.dp,
+                        background = Color.Black,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
-                            .padding(vertical = 6.dp)
-                            .background(Color.Black)
-                            .horizontalScroll(horizontalScroll)
-                            .verticalScroll(verticalScroll),
+                            .padding(vertical = 6.dp),
                     ) {
-                        // Rendered larger than the viewport so there's
-                        // actually room to pan around the plan, like
-                        // panning a real drawing under a fixed screen.
                         FloorPlanCanvas(modifier = Modifier.size(1600.dp, 1600.dp))
                     }
                     SystemSecuredBanner()

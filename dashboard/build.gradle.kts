@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.compose)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -15,6 +16,7 @@ dependencies {
     implementation(project(":design-system"))
     implementation(compose.desktop.currentOs)
     implementation(libs.oshi.core)
+    implementation(libs.kotlinx.serialization.json)
 }
 
 compose.desktop {
@@ -33,4 +35,11 @@ compose.desktop {
             packageVersion = "1.0.0"
         }
     }
+}
+
+tasks.register<JavaExec>("runMapPreview") {
+    group = "application"
+    description = "Launches the Island Map component alone in a debug window (layer toggles, sample data)."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("os.nublar.dashboard.MapPreviewMainKt")
 }

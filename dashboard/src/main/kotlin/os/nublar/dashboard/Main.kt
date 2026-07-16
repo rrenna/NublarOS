@@ -32,6 +32,9 @@ private enum class Screen { Dashboard, ControlRoomPlanView, IslandMap }
 fun main() = application {
     var isFullscreen by remember { mutableStateOf(false) }
     var screen by remember { mutableStateOf(Screen.Dashboard) }
+    // Shared across ControlRoomPlanView and IslandMapView so the pane split
+    // stays put when switching screens via the SCREEN button.
+    var splitFraction by remember { mutableStateOf(0.535f) }
     val windowState = rememberWindowState(
         placement = if (isFullscreen) WindowPlacement.Fullscreen else WindowPlacement.Floating,
         width = 1280.dp,
@@ -63,11 +66,15 @@ fun main() = application {
                 Screen.ControlRoomPlanView -> ControlRoomPlanView(
                     onClose = { screen = Screen.Dashboard },
                     onSwitchScreen = { screen = Screen.IslandMap },
+                    splitFraction = splitFraction,
+                    onSplitFractionChange = { splitFraction = it },
                 )
 
                 Screen.IslandMap -> IslandMapView(
                     onClose = { screen = Screen.Dashboard },
                     onSwitchScreen = { screen = Screen.ControlRoomPlanView },
+                    splitFraction = splitFraction,
+                    onSplitFractionChange = { splitFraction = it },
                 )
             }
         }

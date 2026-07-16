@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -31,28 +30,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import os.nublar.dashboard.ui.map.IslandMap
+import os.nublar.dashboard.ui.map.MapViewport
+import os.nublar.dashboard.ui.map.loadPaddockCollection
 import os.nublar.designsystem.NublarColors
-
-/** Loads the original island artwork bundled at dashboard/src/main/resources/island.png. */
-private fun loadIslandBitmap(): ImageBitmap {
-    val bytes = object {}.javaClass.classLoader.getResourceAsStream("island.png")!!.readBytes()
-    return org.jetbrains.skia.Image.makeFromEncoded(bytes).toComposeImageBitmap()
-}
 
 /**
  * Close recreation of the film's "Raptor Paddock" island-map / vehicle
@@ -62,7 +54,12 @@ private fun loadIslandBitmap(): ImageBitmap {
  * same visual style, not a traced copy or extracted film frame.
  */
 @Composable
-fun IslandMapView(onClose: () -> Unit, onSwitchScreen: () -> Unit = {}) {
+fun IslandMapView(
+    onClose: () -> Unit,
+    onSwitchScreen: () -> Unit = {},
+    splitFraction: Float = 0.535f,
+    onSplitFractionChange: (Float) -> Unit = {},
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -70,37 +67,13 @@ fun IslandMapView(onClose: () -> Unit, onSwitchScreen: () -> Unit = {}) {
             .padding(16.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                val density = LocalDensity.current
-                val dividerWidth = 10.dp
-                val minPaneWidth = 220.dp
-                val totalWidthPx = with(density) { maxWidth.toPx() }
-                val dividerWidthPx = with(density) { dividerWidth.toPx() }
-                val minPaneWidthPx = with(density) { minPaneWidth.toPx() }
-                var leftWidthPx by remember(totalWidthPx) {
-                    mutableStateOf((totalWidthPx - dividerWidthPx) * 0.62f)
-                }
-                val maxLeftWidthPx = (totalWidthPx - dividerWidthPx - minPaneWidthPx).coerceAtLeast(minPaneWidthPx)
-                leftWidthPx = leftWidthPx.coerceIn(minPaneWidthPx, maxLeftWidthPx)
-
-                Row(modifier = Modifier.fillMaxSize()) {
-                    PaddockMapPanel(
-                        modifier = Modifier.width(with(density) { leftWidthPx.toDp() }).fillMaxHeight(),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(dividerWidth)
-                            .fillMaxHeight()
-                            .padding(horizontal = 3.dp)
-                            .background(NublarColors.DarkFrame)
-                            .pointerHoverIcon(PointerIcon.Hand),
-                    )
-                    IslandRightColumn(
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClose = onClose,
-                    )
-                }
-            }
+            DraggableSplitRow(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                splitFraction = splitFraction,
+                onSplitFractionChange = onSplitFractionChange,
+                left = { m -> PaddockMapPanel(modifier = m) },
+                right = { m -> IslandRightColumn(modifier = m, onClose = onClose) },
+            )
             BottomBar(screenLabel = "Animal Paddocks", onScreenClick = onSwitchScreen)
         }
     }
@@ -109,102 +82,26 @@ fun IslandMapView(onClose: () -> Unit, onSwitchScreen: () -> Unit = {}) {
 @Composable
 private fun PaddockMapPanel(modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
-        Box(
+        val paddocks = remember { loadPaddockCollection().paddocks }
+        MapViewport(
+            contentWidth = 1200.dp,
+            contentHeight = 1200.dp,
+            panEnabled = true,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
                 .background(NublarColors.DarkFrame)
                 .padding(4.dp),
         ) {
-            val horizontalScroll = rememberScrollState()
-            val verticalScroll = rememberScrollState()
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .horizontalScroll(horizontalScroll)
-                    .verticalScroll(verticalScroll),
-            ) {
-                PaddockMapCanvas(modifier = Modifier.size(1200.dp, 1200.dp))
-            }
+            IslandMap(
+                modifier = Modifier.size(1200.dp, 1200.dp),
+                paddockShapes = paddocks,
+            )
         }
         PaddockLevelBar()
     }
 }
 
-/**
- * Original terrain map: dithered green "satellite" texture, a closed dark
- * red paddock boundary, thin white service roads, a light-blue river, water
- * along the right edge, and red/black directional markers around the
- * boundary — same visual language as the reference, redrawn from scratch.
- */
-@Composable
-private fun PaddockMapCanvas(modifier: Modifier = Modifier) {
-    val islandBitmap = remember { loadIslandBitmap() }
-
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        fun pt(x: Float, y: Float) = Offset(w * x, h * y)
-
-        drawImage(islandBitmap, dstSize = IntSize(w.toInt(), h.toInt()))
-
-        // Paddock boundary — positioned over the island's large southern
-        // landmass, below the narrow "waist" visible in the artwork.
-        val boundary = Path().apply {
-            moveTo(pt(0.32f, 0.42f).x, pt(0.32f, 0.42f).y)
-            lineTo(pt(0.58f, 0.38f).x, pt(0.58f, 0.38f).y)
-            lineTo(pt(0.72f, 0.45f).x, pt(0.72f, 0.45f).y)
-            lineTo(pt(0.78f, 0.58f).x, pt(0.78f, 0.58f).y)
-            lineTo(pt(0.70f, 0.72f).x, pt(0.70f, 0.72f).y)
-            lineTo(pt(0.60f, 0.85f).x, pt(0.60f, 0.85f).y)
-            lineTo(pt(0.45f, 0.92f).x, pt(0.45f, 0.92f).y)
-            lineTo(pt(0.32f, 0.85f).x, pt(0.32f, 0.85f).y)
-            lineTo(pt(0.25f, 0.68f).x, pt(0.25f, 0.68f).y)
-            lineTo(pt(0.28f, 0.52f).x, pt(0.28f, 0.52f).y)
-            close()
-        }
-        drawPath(boundary, color = Color(0xFF7A2B2B), style = Stroke(width = w * 0.014f))
-
-        // Interior sub-paddock divisions.
-        drawLine(Color(0xFF7A2B2B), pt(0.50f, 0.40f), pt(0.46f, 0.60f), strokeWidth = w * 0.006f)
-        drawLine(Color(0xFF7A2B2B), pt(0.46f, 0.60f), pt(0.64f, 0.56f), strokeWidth = w * 0.006f)
-        drawLine(Color(0xFF7A2B2B), pt(0.46f, 0.60f), pt(0.42f, 0.78f), strokeWidth = w * 0.006f)
-        drawLine(Color(0xFF7A2B2B), pt(0.42f, 0.78f), pt(0.58f, 0.76f), strokeWidth = w * 0.006f)
-
-        // "UNARMED" label in the interior sub-paddock.
-        drawRect(
-            Color(0xFF7A2B2B),
-            topLeft = pt(0.45f, 0.63f),
-            size = Size(w * 0.14f, h * 0.04f),
-        )
-
-        // Directional markers around the boundary, alternating red/black
-        // triangles, echoing the reference's compass/route markers.
-        val markers = listOf(
-            pt(0.45f, 0.39f) to 180f,
-            pt(0.68f, 0.42f) to 90f,
-            pt(0.76f, 0.58f) to 90f,
-            pt(0.66f, 0.80f) to 0f,
-            pt(0.48f, 0.90f) to 0f,
-            pt(0.28f, 0.75f) to 270f,
-            pt(0.27f, 0.55f) to 180f,
-            pt(0.36f, 0.44f) to 45f,
-        )
-        markers.forEachIndexed { index, (center, rotation) ->
-            val markerColor = if (index % 3 == 0) Color(0xFF7A2B2B) else Color.Black
-            rotate(rotation, pivot = center) {
-                val triangle = Path().apply {
-                    moveTo(center.x, center.y - w * 0.016f)
-                    lineTo(center.x - w * 0.014f, center.y + w * 0.010f)
-                    lineTo(center.x + w * 0.014f, center.y + w * 0.010f)
-                    close()
-                }
-                drawCircle(markerColor, radius = w * 0.020f, center = center)
-                drawPath(triangle, color = Color.White)
-            }
-        }
-    }
-}
 
 @Composable
 private fun PaddockLevelBar() {

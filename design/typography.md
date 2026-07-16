@@ -33,6 +33,12 @@ Bold display face, used sparingly for hero labels (`ANIMAL PADDOCKS`,
 - Recommended starting pick: **Archivo Black** for high-impact labels;
   reserve a pixel/bitmap face (e.g. **Press Start 2P**, used very sparingly)
   for explicitly "old CRT" moments only.
+- **Movie title face:** the *Jurassic Park*-style title font
+  (`JurassicPark-BL48.ttf`) is bundled at `assets/fonts/` and loadable at
+  runtime via `NublarFonts.JurassicTitle`. Use it only for the biggest hero
+  moments (splash / lock screen / boot). **License caveat:** Freeware,
+  **Non-Commercial only** (see `assets/fonts/ATTRIBUTION.md`) — unlike the
+  OFL fonts above, it can't ship in a commercial fork.
 
 ## Application
 

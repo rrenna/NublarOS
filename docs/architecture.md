@@ -86,6 +86,49 @@ Reasoning:
   `.deb`/`.rpm`/AppImage installers with the JVM bundled, so end users don't
   need a separate Java install.
 
+## Current Implementation Status
+
+What actually exists in the repo today (the rest of this document and the
+README describe the broader plan):
+
+- **`design-system/`** — Compose theme: `NublarColors` (from
+  `design/palette.md`), `NublarType`, `NublarTheme`, a `BeveledPanel`
+  component, and `NublarFonts.JurassicTitle` (bundled movie-title face; see
+  the non-commercial license note in `design/typography.md`).
+- **`dashboard/`** (Nedryland Monitor) — a Compose Desktop app with:
+  - Live system metrics via `oshi` (`SystemMetricsReader` →
+    `MetricsGrid`), with a native-fullscreen "control room mode" toggle.
+  - **Control Room / Plan View** screen (`ControlRoomPlanView`) — a
+    recreation of the film's "SYSTEM SECURED" plan-view screen, drawn from
+    scratch with a beveled System-7/SGI-style UI kit shared across screens.
+  - **Island map** screen (`IslandMapView`) plus a reusable **`IslandMap`**
+    component (`ui/map/`) — the island artwork with independently
+    toggleable overlays (Paddocks, Facilities, Dinosaurs, Vehicles, Staff),
+    hover tooltips, right-click-drag panning + wheel zoom-scroll
+    (`MapViewport`), and icon-disc markers (skull for paddock species,
+    helicopter for the helipad).
+  - **Paddock editor** — paddocks are a JSON-serializable model
+    (`PaddockShape`, kotlinx.serialization) loaded from
+    `resources/paddocks.json`; a standalone preview (`MapPreviewMain`, run
+    via `./gradlew :dashboard:runMapPreview`) supports layer toggles,
+    click-to-select, vertex dragging / arrow-key nudging, and Copy-JSON to
+    the clipboard for round-tripping edits back into the file.
+- **`command-interface/`** — the pty4j + jediterm embedded terminal wrapped
+  in a Compose `SwingPanel` (`EmbeddedTerminal` / `EmbeddedTerminalView`).
+- **`stormtrack/`**, **`system-navigator/`** — placeholder modules only.
+- **`linux/terminal/`**, **`scripts/`** — the ParkNet terminal profile and
+  the reversible install/backup/restore scripts (untested on real Linux; see
+  `docs/environment.md`).
+
+### Dependency versions
+
+Pinned in `gradle/libs.versions.toml`: Kotlin `2.4.10`, Compose Multiplatform
+`1.11.1`, kotlinx-serialization `1.9.0`, oshi `7.4.0`, pty4j `0.13.12`,
+jediterm `3.73` (from JetBrains' `intellij-dependencies` repo, not Maven
+Central — its Kotlin-metadata version must match the Kotlin compiler, so bump
+the two together), lwjgl `3.4.2` (declared for the future System Navigator 3D
+work, not yet used).
+
 ## System Navigator Rendering (spike pending)
 
 Task 9 originally called for comparing Qt/QML and Godot. With the KMP

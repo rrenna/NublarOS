@@ -1,0 +1,32 @@
+{
+  "paddocks": [
+    {
+      "id": "raptor-paddock",
+      "label": "Raptor Paddock",
+      "species": ["Velociraptor"],
+      "carnivore": true,
+      "closed": true,
+      "vertices": [
+        { "x": 0.36, "y": 0.42 },
+        { "x": 0.46, "y": 0.40 },
+        { "x": 0.50, "y": 0.50 },
+        { "x": 0.45, "y": 0.58 },
+        { "x": 0.36, "y": 0.55 }
+      ]
+    },
+    {
+      "id": "tyrannosaurus-paddock",
+      "label": "Tyrannosaurus Paddock",
+      "species": ["Tyrannosaurus"],
+      "carnivore": true,
+      "closed": true,
+      "vertices": [
+        { "x": 0.52, "y": 0.30 },
+        { "x": 0.66, "y": 0.30 },
+        { "x": 0.70, "y": 0.42 },
+        { "x": 0.62, "y": 0.50 },
+        { "x": 0.52, "y": 0.46 }
+      ]
+    }
+  ]
+}

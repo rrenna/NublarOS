@@ -1,6 +1,6 @@
 # NublarOS
 
-A retro-futurist desktop theme and operating-system reskin inspired by the control-room computers in *Jurassic Park*.
+A retro-futurist, cross-platform desktop application inspired by the control-room computers in *Jurassic Park*.
 
 NublarOS is designed to feel like a believable 1993 park-operations workstation rather than a generic neon “hacker” theme. Its visual language combines:
 
@@ -12,15 +12,73 @@ NublarOS is designed to feel like a believable 1993 park-operations workstation 
 - Chunky beveled panels
 - Restrained green, red, blue, gray, and cream accents
 
-The primary target is Garuda Linux, with a lighter macOS version planned afterward.
+NublarOS is a standalone **Kotlin / Compose Multiplatform for Desktop**
+application that runs on macOS, Linux, and Windows from one codebase — not a
+Linux desktop theme or OS reskin. Everything (the dashboard, terminal, island
+map, and future components) lives inside the app itself.
+
+## Ultimate Goal
+
+The end goal is a **"watch-along" mode**: run NublarOS alongside the film and
+have it simulate the movie's events **in sync** with playback — the control
+room reacting as the story unfolds. As scenes progress, the app drives its own
+state to match: paddock security arming and failing, the storm closing in on
+StormTrack, tour vehicles moving along their routes, power grid and fence
+status changing, incidents logging, the raptor breakout, etc. The result is a
+second-screen companion that turns the viewer's desktop into the park's
+operations console for the duration of the movie.
+
+### Sync tooling
+
+The film plays in another window (or on a TV); NublarOS follows it via a
+timeline of scripted events keyed to playback time. Intended controls:
+
+- **Manual transport** — a simple start / pause / stop / seek that runs the
+  event timeline on its own clock, which the user lines up with the film by
+  hitting start at a known cue.
+- **Playback integration where a platform allows it** — e.g. on macOS,
+  observing the Apple TV / TV app (or a `Now Playing` / media-remote signal)
+  to auto-start and stay aligned; equivalent hooks on other players/platforms
+  where an accessible playback position exists.
+- **Calibration / drift correction** — a nudge control to re-align if the app
+  and film drift, and a chosen "sync point" scene the user can jump both to.
+
+Manual transport is the baseline that works everywhere; automatic playback
+integration is a per-platform enhancement layered on top.
+
+---
+
+## Implementation Status
+
+Most of this document is the project *plan* and long-term vision. What is
+actually built today is a **Kotlin / Compose Multiplatform for Desktop**
+application suite (not the Qt/Tauri/etc. options weighed later in this file —
+see [`docs/architecture.md`](docs/architecture.md) for the decision and the
+current status list). Highlights:
+
+- **Nedryland Monitor dashboard** (`dashboard/`) with live system metrics.
+- A recreated **Control Room / Plan View** screen and an interactive
+  **island map** (toggleable paddock / facility / dinosaur / vehicle / staff
+  layers, right-drag panning, hover tooltips, and a JSON-backed paddock
+  editor).
+- An **embedded terminal** (pty4j + jediterm) for ParkNet Terminal.
+- A shared **`design-system`** module (palette, typography, beveled UI kit).
+
+`stormtrack/` and `system-navigator/` are placeholder modules, and the
+film-synchronized "watch-along" simulation (see Ultimate Goal) is not started.
+
+Build/run: `./gradlew :dashboard:run` (dashboard) or
+`./gradlew :dashboard:runMapPreview` (standalone island-map editor).
 
 ---
 
 ## Project Goals
 
-NublarOS should transform the desktop into a convincing fictional park-control environment while remaining comfortable enough for daily use.
+NublarOS should present a convincing fictional park-control environment as a
+self-contained application, immersive enough to run as an ambient display yet
+comfortable enough to interact with directly.
 
-The theme should:
+The app should:
 
 - Feel inspired by the original *Jurassic Park* control room
 - Screen layouts (button arrangement, panel structure, status-log/floor-plan
@@ -29,105 +87,37 @@ The theme should:
   "Legal and Asset Guidelines"
 - Use original iconography, maps, labels, sounds, and interface elements
   where a direct recreation isn't the specific goal
-- Remain readable and practical for everyday work
-- Support both a lightweight theme-only installation and a full immersive setup
+- Remain readable and practical
 - Treat system information as fictional park telemetry
-- Be modular so users can install only the pieces they want
+- Be modular, so components (dashboard, map, terminal, StormTrack, …) work on
+  their own and compose into the full console
+- Ultimately support the film-synchronized "watch-along" mode (see Ultimate Goal)
 
-The preferred design direction is a **cleaned-up retro recreation**: recognizably early-1990s, but polished enough for modern desktop use.
+The preferred design direction is a **cleaned-up retro recreation**: recognizably early-1990s, but polished enough for modern use.
 
 ---
 
 ## Platform Strategy
 
-### Primary Platform: Garuda Linux
+NublarOS is a **standalone cross-platform application**, not an OS reskin. The
+whole experience — the Nedryland Monitor dashboard, the island map, the
+ParkNet terminal, and the future StormTrack / System Navigator — is one Kotlin
+/ Compose Multiplatform for Desktop codebase that builds and runs identically
+on **macOS, Linux, and Windows**.
 
-Linux offers the greatest control over:
+- One Kotlin/JVM + Compose Desktop codebase, packaged per-OS via `jpackage`
+  (`.dmg` / `.deb` / `.rpm` / AppImage / `.exe`).
+- Native fullscreen ("control room mode"), native process spawning, and a
+  real embedded terminal (pty4j + jediterm) all work across platforms.
+- macOS is the current primary development/verification platform; Linux and
+  Windows are supported by the same source and validated as environments
+  become available. See [`docs/architecture.md`](docs/architecture.md).
 
-- Window decorations
-- Shell or panel styling
-- Icons
-- Cursors
-- Terminal profiles
-- Login screens
-- Lock screens
-- Desktop widgets
-- System monitors
-- Sounds
-- Wallpapers
-- Application themes
-
-The first development task is to determine the active desktop environment:
-
-```bash
-echo "$XDG_CURRENT_DESKTOP"
-```
-
-Likely results include:
-
-```text
-GNOME
-```
-
-or:
-
-```text
-KDE
-```
-
-### KDE Plasma
-
-KDE Plasma is the preferred target for the most complete version of NublarOS.
-
-Potential components:
-
-- Global theme
-- Plasma style
-- Window decoration
-- Color scheme
-- Icon theme
-- Cursor theme
-- Konsole profile
-- Panel layout
-- Application launcher
-- System monitor widgets
-- Splash screen
-- SDDM login theme
-- Lock-screen treatment
-- Notification styling
-
-### GNOME
-
-A GNOME version is still viable, but some system chrome is more constrained.
-
-Potential components:
-
-- GTK theme
-- GNOME Shell theme
-- Icon theme
-- Cursor theme
-- Terminal profile
-- Dock styling
-- Top-bar styling
-- GNOME extensions
-- Conky or Eww dashboard
-- Lock-screen and login styling where practical
-
-### Secondary Platform: macOS
-
-The macOS version will focus on creating a themed workspace rather than replacing all system chrome.
-
-Potential components:
-
-- Wallpaper pack
-- Custom folder and application icons
-- Terminal profile
-- Menu-bar status utility
-- Desktop widgets
-- Screen saver
-- Custom alert sounds
-- SwiftUI-based NublarOS dashboard
-- Optional full-screen control-room mode
+Deep OS-level theming (installing NublarOS as a KDE/GNOME desktop theme, SDDM
+login, etc.) is **out of scope** — the project deliberately keeps everything
+inside the app rather than modifying the host desktop. Some early theme-install
+scaffolding still exists under `scripts/` and `linux/` from before this
+decision; it is legacy and not part of the current direction.
 
 ---
 
@@ -439,793 +429,102 @@ Potential terminal integrations:
 
 ---
 
-## Signature Component: Nedryland Monitor
-
-The Nedryland Monitor is the key custom application that will make NublarOS feel like a real fictional operating environment.
-
-It should convert real computer telemetry into park-operations terminology.
-
-| Real Metric | NublarOS Label |
-|---|---|
-| CPU usage | Main Grid Load |
-| RAM usage | Operations Memory |
-| Disk space | Mini Array Capacity |
-| Network activity | ParkNet Traffic |
-| Running processes | Active Systems |
-| Temperatures | Environmental Control |
-| Battery | Auxiliary Power |
-| Failed services | Glitches |
-| Mounted drives | System Volumes |
-| Uptime | Park Runtime |
-| Fan speed | Ventilation Systems |
-| GPU load | Visual Systems Load |
-
-### Dashboard Features
-
-Initial version:
-
-- CPU usage
-- Memory usage
-- Disk usage
-- Network activity
-- System uptime
-- Failed services
-- Current time
-- Hostname
-- Operating-system version
-
-Later version:
-
-- Interactive island map
-- Sector-based system status
-- Animated vehicle markers
-- Alert history
-- Faux surveillance feeds
-- Application launcher
-- Audio alerts
-- Configurable themes
-- Full-screen control-room mode
-
-### Status Mapping
-
-- Green sector: normal
-- Yellow sector: moderate load
-- Orange sector: degraded
-- Red sector: failed
-- Flashing sector: disconnected or urgent
-- Gray sector: unavailable
-
----
-
-
-## Signature Component: Storm Simulation
-
-NublarOS should include a dedicated storm-analysis module inspired by the hurricane visualization shown on the SGI workstations in the control room.
-
-The film display presented a real-time-looking 3D hurricane animation, although the on-set graphics were pre-generated and fed to the monitors by an off-stage graphics team. NublarOS should recreate the visual language of an early-1990s scientific workstation while using original assets and modern rendering techniques.
-
-Possible module names:
-
-- StormTrack
-- Cyclone Control
-- Island Weather System
-- Tempest Model
-- Weather Operations
-
-**StormTrack** is the preferred working name.
-
-### Goals
-
-The interface should:
-
-- Feel like a scientific simulation rather than a modern consumer weather app
-- Keep the island at the center of the operational picture
-- Visualize both the storm and its effect on park infrastructure
-- Support an offline fictional simulation mode
-- Optionally support live weather data later
-- Integrate its alerts with the Nedryland Monitor
-- Remain useful as an ambient full-screen display
-
-### Core Views
-
-#### Island Overview
-
-Show:
-
-- Original island silhouette
-- Paddock and sector boundaries
-- Visitor facilities
-- Dock and helipad
-- Vehicle routes
-- Power infrastructure
-- Communications nodes
-- Storm center
-- Current wind radius
-- Projected path
-- Sector warning states
-
-#### Atmospheric Model
-
-Show:
-
-- Animated cloud mass
-- Pressure field
-- Wind direction
-- Wind velocity
-- Rain intensity
-- Storm rotation
-- Forecast uncertainty
-- Time-step indicator
-
-#### Infrastructure Impact
-
-Show predicted or simulated effects on:
-
-- Main power grid
-- Auxiliary power
-- Perimeter fences
-- Communications
-- Dock operations
-- Helipad operations
-- Vehicle routes
-- Visitor facilities
-- Paddock access
-- Emergency shelters
-
-### Visual Style
-
-- Dark blue-gray map background
-- Thin vector coastlines
-- Low-resolution or pixel-stepped cloud rendering
-- Sparse contour lines
-- Green, yellow, orange, and red intensity bands
-- Compact all-caps labels
-- Chunky playback controls
-- Timestamped forecast frames
-- Visible simulation step number
-- Minimal anti-aliasing where practical
-- Optional frame-by-frame playback
-- No glossy modern weather-app styling
-
-Suggested labels:
-
-```text
-STORM TRACKING
-CYCLONE MODEL
-ISLAND WEATHER SYSTEM
-PRESSURE FIELD
-WIND VELOCITY
-PROJECTED LANDFALL
-SECTOR EXPOSURE
-EMERGENCY WEATHER MODE
-MODEL TIME
-SIMULATION STEP
-```
-
-### Controls
-
-Suggested controls:
-
-- Play
-- Pause
-- Step forward
-- Step backward
-- Restart simulation
-- Change playback speed
-- Toggle cloud layer
-- Toggle pressure layer
-- Toggle wind vectors
-- Toggle infrastructure
-- Toggle projected path
-- Select forecast model
-- Select simulation time
-- Enter full-screen mode
-
-The controls should resemble physical workstation buttons rather than modern media controls.
-
-### Rendering Strategy
-
-#### First Prototype
-
-Use the simplest approach capable of proving the visual design:
-
-- SVG island and infrastructure overlays
-- Canvas-rendered storm field
-- Pre-generated cloud frames
-- Animated storm track
-- Static pressure contours
-- Timeline playback
-- Simulated sector alerts
-
-#### Full Version
-
-Potential technologies:
-
-- WebGL
-- Three.js
-- PixiJS
-- Qt Quick Scene Graph
-- Vulkan-backed Qt rendering
-- Metal for a future macOS version
-
-Potential full-version features:
-
-- GPU-rendered cloud field
-- Particle-based wind visualization
-- Procedural storm generation
-- Pressure and precipitation textures
-- Time-step simulation
-- Multiple forecast paths
-- Configurable island coordinates
-- Live weather-data adapter
-- Historical storm playback
-- Exportable screenshots and recordings
-
-### Simulation Data Model
-
-A fictional simulation should be loadable from a local configuration file.
-
-Example:
-
-```yaml
-storm:
-  id: CYCLONE-04
-  name: CLARISSA
-  category: 2
-  center:
-    latitude: 10.42
-    longitude: -84.17
-  heading_degrees: 302
-  forward_speed_kmh: 18
-  central_pressure_hpa: 972
-  maximum_wind_kmh: 168
-
-timeline:
-  start: 1993-06-11T18:00:00
-  step_minutes: 15
-  frame_count: 48
-
-overlays:
-  clouds: true
-  pressure: true
-  wind: true
-  rainfall: false
-  infrastructure: true
-  projected_path: true
-```
-
-### Integration with Nedryland Monitor
-
-StormTrack alerts should appear in the main dashboard.
-
-Examples:
-
-```text
-WEATHER ADVISORY: EAST DOCK
-SECTOR 04 EXPOSURE: HIGH
-TOUR ROUTE B SUSPENDED
-AUXILIARY GRID LOAD INCREASING
-HELIPAD OPERATIONS CLOSED
-```
-
-Storm status may also influence the color state of sectors on the main island map.
-
----
-
-## Signature Component: Spatial File Navigator
-
-NublarOS should include a visual file browser inspired by `fsn`, the experimental SGI File System Navigator used by Lex during the “It’s a UNIX system” scene.
-
-In the film, Lex opens the `/usr` directory on an SGI workstation and navigates a three-dimensional representation of the file system. The NublarOS version should capture that sense of spatial exploration without replacing the normal file manager for routine work.
-
-Possible module names:
-
-- System Navigator
-- ParkNet Navigator
-- Archive Navigator
-- File System Navigator
-- Spatial Archives
-- Grid Explorer
-
-**System Navigator** is the preferred user-facing name. Internally, the project may refer to it as `nublar-fsn`.
-
-### Goals
-
-The navigator should:
-
-- Provide a spatial overview of folders and files
-- Make directory depth visually understandable
-- Feel like an experimental SGI workstation tool
-- Work as a launcher and exploration interface
-- Preserve access to ordinary file operations
-- Avoid becoming the only way to manage files
-- Support keyboard navigation
-- Remain functional with large directories
-
-### Core Metaphor
-
-A directory is represented as a raised platform or city block.
-
-Its contents appear as objects placed on that platform:
-
-- Directories become towers or larger blocks
-- Regular files become smaller blocks
-- Executables become distinct machine-like structures
-- Symbolic links become bridges or cables
-- Mounted volumes become separate islands or districts
-- Hidden files appear only when the hidden-layer toggle is enabled
-
-Directory hierarchy may be shown through:
-
-- Height
-- Nested platforms
-- Connected districts
-- Camera movement
-- Breadcrumb path
-- Color-coded depth
-- Parent-child bridges
-
-### Visual Style
-
-The interface should draw from early real-time 3D graphics:
-
-- Flat-shaded geometry
-- Limited color palette
-- Dark background
-- Visible grid plane
-- Low-poly objects
-- Strong perspective
-- Sparse lighting
-- Chunky labels
-- Minimal texture use
-- Optional wireframe mode
-- Deliberately restrained frame rate option
-
-The goal is not photorealism. It should look like expensive 1993 workstation graphics rendered smoothly on modern hardware.
-
-### File Representation
-
-Suggested default mappings:
-
-| File Type | Visual Representation |
-|---|---|
-| Directory | Tall rectangular tower |
-| Regular file | Short rectangular block |
-| Executable | Mechanical tower with indicator |
-| Image | Thin panel |
-| Video | Wide display block |
-| Audio | Speaker-like block |
-| Archive | Reinforced storage crate |
-| Source code | Stacked terminal slab |
-| Configuration | Control panel |
-| Symbolic link | Bridge or light beam |
-| Mounted volume | Separate platform |
-| Hidden file | Dim translucent block |
-| Broken link | Red interrupted bridge |
-
-### Size and Metadata Mapping
-
-Object properties may encode file metadata:
-
-- Footprint: file size
-- Height: directory item count or file size
-- Color: file type
-- Brightness: recent modification
-- Pulse: active change
-- Label: filename
-- Border: permissions
-- Marker: executable status
-- Warning symbol: inaccessible or broken item
-
-Scaling must be logarithmic so very large files do not dominate the entire scene.
-
-### Navigation
-
-Required interactions:
-
-- Orbit camera
-- Pan camera
-- Zoom
-- Select object
-- Open directory
-- Move to parent directory
-- Open selected file
-- Reveal metadata
-- Copy path
-- Open terminal at location
-- Open location in standard file manager
-- Toggle labels
-- Toggle hidden files
-- Toggle wireframe
-- Search by filename
-- Reset camera
-
-Keyboard controls should be fully documented.
-
-Suggested controls:
-
-```text
-WASD / ARROWS     MOVE
-MOUSE DRAG        ORBIT
-SCROLL            ZOOM
-ENTER             OPEN
-BACKSPACE         PARENT
-SPACE             INSPECT
-T                 OPEN TERMINAL
-F                 OPEN STANDARD FILE MANAGER
-H                 HIDDEN FILES
-L                 LABELS
-G                 GRID
-R                 RESET VIEW
-/                 SEARCH
-```
-
-### Selection and Inspection Panel
-
-Selecting an object should open an inset information panel.
-
-Example:
-
-```text
-SYSTEM OBJECT
-NAME: Visitor.Center
-TYPE: DIRECTORY
-CONTENTS: 148
-MODIFIED: 12:42
-ACCESS: OPERATIONS
-LOCATION: /usr/Visitor.Center
-```
-
-Actions:
-
-- Open
-- Inspect
-- Copy path
-- Open terminal
-- Open standard file manager
-- Rename
-- Move to Purge
-- View permissions
-
-Destructive actions should require clear confirmation.
-
-### Layout Modes
-
-#### City Mode
-
-Directories and files appear as a navigable low-poly city.
-
-Best for:
-
-- Visual browsing
-- Demonstrations
-- Full-screen use
-- Recreating the SGI-inspired experience
-
-#### Column Mode
-
-Directories appear as connected platforms arranged by depth.
-
-Best for:
-
-- Understanding hierarchy
-- Navigating deeply nested projects
-- Preserving spatial context
-
-#### Map Mode
-
-Directories are arranged as a top-down facility map.
-
-Best for:
-
-- Large directory trees
-- Fast overview
-- Integration with the broader NublarOS map aesthetic
-
-The first milestone should implement only City Mode.
-
-### Performance Requirements
-
-The navigator must not attempt to render an unlimited number of filesystem entries.
-
-Initial safeguards:
-
-- Default object limit per directory
-- Progressive loading
-- Level-of-detail reduction
-- File-type aggregation
-- Logarithmic size scaling
-- Label culling
-- Cached directory metadata
-- Background scanning
-- Configurable hidden-file behavior
-
-Large directories should group excess items into aggregate structures such as:
-
-```text
-SOURCE FILES × 428
-CACHE OBJECTS × 1,204
-LOG FILES × 312
-```
-
-### Safety Requirements
-
-The navigator is an alternate view of the real file system and must be conservative.
-
-Requirements:
-
-- Read-only mode by default in the first prototype
-- No drag-to-delete behavior
-- No permanent deletion
-- Destructive actions require confirmation
-- Symlinks must not be followed recursively without limits
-- Permission failures must be shown clearly
-- Network mounts should be opt-in
-- Filesystem watchers must be resource-limited
-- Standard file-manager access must always be available
-
-### Technology Options
-
-Potential implementations:
-
-#### Qt/QML
-
-Advantages:
-
-- Strong Linux desktop integration
-- GPU-accelerated scene graph
-- Native filesystem APIs
-- Good keyboard and window management
-- Fits a KDE-first implementation
-
-#### Tauri with WebGL
-
-Advantages:
-
-- Fast UI iteration
-- Three.js or PixiJS ecosystem
-- Potential cross-platform reuse
-- Easier visual prototyping
-
-#### Godot
-
-Advantages:
-
-- Excellent 3D scene workflow
-- Fast prototyping
-- Strong input and camera tools
-- Particularly suitable for the city metaphor
-
-Tradeoffs:
-
-- Less native desktop integration
-- Additional packaging complexity
-- Filesystem operations require careful sandboxing and permissions
-
-For a KDE-first NublarOS implementation, evaluate Qt/QML and Godot first. A short technical spike should compare filesystem integration, rendering effort, package size, and startup time.
-
-### First Prototype Scope
-
-The first prototype should:
-
-- Open a user-selected directory
-- Render directories and files as low-poly blocks
-- Support orbit, pan, and zoom
-- Show filename labels
-- Open subdirectories
-- Navigate to the parent directory
-- Display metadata for a selected item
-- Open a selected file with the system default application
-- Open the location in the standard file manager
-- Open a terminal at the current path
-- Enforce read-only behavior
-
-### Later Features
-
-- Multiple layout modes
-- Search animation
-- File-operation animations
-- Git status overlays
-- Storage heat map
-- Recent-file pulses
-- Mounted-volume districts
-- Network-share visualization
-- Split view
-- Saved camera positions
-- VR or stereoscopic mode as an experimental extra
-- Integration with the NublarOS application launcher
-- Optional deliberately low-resolution rendering mode
+## Signature Components
+
+Each signature component has its own detailed design & research notes under
+[`docs/`](docs/). Summaries:
+
+- **Nedryland Monitor** — the custom system dashboard that maps real telemetry
+  onto park-operations terminology (CPU → Main Grid Load, failed services →
+  Glitches, etc.), with sector status colors and a later interactive island
+  map. Built as a working Compose Desktop app with live `oshi` metrics.
+  → [`docs/nedryland-monitor.md`](docs/nedryland-monitor.md)
+
+- **StormTrack** — a storm-analysis module recreating the film's SGI hurricane
+  display: island overview, atmospheric model, and infrastructure-impact
+  views driven by a loadable fictional simulation, with alerts feeding the
+  Nedryland Monitor. Placeholder module today.
+  → [`docs/stormtrack.md`](docs/stormtrack.md)
+
+- **System Navigator** (`nublar-fsn`) — a spatial, low-poly 3D file browser
+  inspired by SGI `fsn`, with a city/column/map metaphor, read-only-first
+  safety rules, and full keyboard navigation. Placeholder module today.
+  → [`docs/system-navigator.md`](docs/system-navigator.md)
+
+- **Command Interface** — the modular command + scripted-scenario engine
+  behind ParkNet Terminal (registration, history, sequencing, fake errors),
+  running on the already-built pty4j/jediterm embedded terminal.
+  → [`docs/command-interface.md`](docs/command-interface.md)
 
 ---
 
 
 ## Project Phases
 
-## Phase 1: Repository and Environment Audit
+The roadmap for the standalone Compose app, building toward the
+film-synchronized watch-along [Ultimate Goal](#ultimate-goal). Status reflects
+what's in the repo today.
 
-Goals:
+### Phase 0 — Foundation · **done**
 
-- Identify KDE Plasma or GNOME
-- Record Linux distribution and version
-- Record display server
-- Record shell
-- Record terminal emulator
-- Record screen resolution
-- Identify installed theming tools
-- Create repository structure
+- Multi-module Gradle / Kotlin scaffold and the Compose Multiplatform stack
+  decision ([`docs/architecture.md`](docs/architecture.md)).
+- `design-system` module: palette, typography (incl. bundled title font), and
+  the beveled System-7/SGI-style UI kit.
 
-Commands:
+### Phase 1 — Core screens & data · **in progress**
 
-```bash
-echo "$XDG_CURRENT_DESKTOP"
-echo "$XDG_SESSION_TYPE"
-echo "$SHELL"
-uname -a
-cat /etc/os-release
-```
+- **Nedryland Monitor** dashboard with live cross-platform metrics (`oshi`)
+  and a native-fullscreen "control room mode".
+- **Control Room / Plan View** screen (recreated film screen).
+- **Island map**: island artwork + toggleable layers (paddocks, facilities,
+  dinosaurs, vehicles, staff), right-drag panning, hover tooltips, and
+  icon-disc markers. Map data is JSON-backed under
+  `dashboard/src/main/resources/data/isla-nublar/` (paddocks, facilities),
+  with a standalone editor (`./gradlew :dashboard:runMapPreview`) that
+  supports selection, vertex editing, and Copy-JSON round-tripping.
+- **ParkNet Terminal**: embedded PTY (pty4j + jediterm).
 
-Deliverables:
+Remaining: sounds, more recreated screens, richer metric coverage.
 
-- `docs/environment.md`
-- Initial repository
-- Platform-specific setup notes
-- Confirmed primary desktop target
+### Phase 2 — Full console assembly · **planned**
 
----
+Bring the individual screens together into one navigable console: a
+shell/launcher that switches subsystems, the park-status top strip and
+incident log as in-app UI, control-room fullscreen mode, consistent
+windowing/notifications/audio, and per-OS packaging via `jpackage`.
 
-## Phase 2: Static Visual Prototype
+### Phase 3 — StormTrack · **planned**
 
-Create one 2560×1440 concept image showing:
+The storm-simulation module — island overview, atmospheric model, and
+infrastructure-impact views from a loadable fictional simulation, feeding
+alerts into the Nedryland Monitor. See [`docs/stormtrack.md`](docs/stormtrack.md).
 
-- Wallpaper
-- Top bar
-- Dock or launcher
-- Terminal
-- File manager
-- Settings panel
-- Nedryland Monitor
-- Notifications
-- Window decorations
+### Phase 4 — System Navigator · **planned**
 
-The prototype should establish:
+The spatial, low-poly file browser (`nublar-fsn`), read-only-first. See
+[`docs/system-navigator.md`](docs/system-navigator.md).
 
-- Color balance
-- Typography
-- Border thickness
-- Icon style
-- Panel density
-- Naming conventions
-- Degree of retro fidelity
+### Phase 5 — Command interface & scenarios · **planned**
 
-Deliverables:
+The modular command + scripted-scenario engine running on the embedded
+terminal (command registration, history, sequencing, staged "glitches"). See
+[`docs/command-interface.md`](docs/command-interface.md). This is also the
+event-driver groundwork for the watch-along timeline.
 
-- `design/desktop-concept.png`
-- `design/palette.md`
-- `design/typography.md`
-- `design/component-reference.md`
+### Phase 6 — Watch-along sync · **planned** · *the ultimate goal*
 
----
+The film-synchronized event timeline that drives every subsystem's state in
+time with the movie, plus the sync tooling (manual transport, per-platform
+playback integration, drift calibration). See
+[Ultimate Goal](#ultimate-goal).
 
-## Phase 3: Minimum Viable Theme
+### Phase 7 — Ambient details · **optional**
 
-Implement the parts that create the largest visual impact with the least complexity.
-
-Initial scope:
-
-- Wallpaper
-- Color scheme
-- Fonts
-- Terminal profile
-- Shell prompt
-- Top panel
-- Dock or launcher
-- Core application icons
-- Cursor theme
-- System sounds
-
-This phase should provide most of the NublarOS feel without requiring deep system modification.
-
-Deliverables:
-
-- Install script
-- Uninstall script
-- Terminal configuration
-- Wallpaper pack
-- Initial icon pack
-- Initial color theme
-- Screenshots
-- Setup documentation
-
----
-
-## Phase 4: Window and Shell Skinning
-
-Add deeper desktop integration.
-
-Potential KDE scope:
-
-- Window decoration
-- Plasma style
-- Global theme
-- Panel theme
-- Launcher skin
-- Notification skin
-- Lock screen
-- Splash screen
-- SDDM theme
-
-Potential GNOME scope:
-
-- GTK theme
-- Shell theme
-- Top-bar styling
-- Dock styling
-- Extension presets
-- Notification styling
-- Lock-screen styling where practical
-
-Deliverables:
-
-- Full desktop theme package
-- Theme preview screenshots
-- Compatibility notes
-- Safe restore procedure
-
----
-
-## Phase 5: Nedryland Monitor
-
-Build the custom system dashboard.
-
-Recommended implementation options:
-
-### Linux
-
-- Qt/QML
-- GTK
-- Tauri
-- Eww
-- Conky for an early prototype
-
-### macOS
-
-- SwiftUI
-- MenuBarExtra
-- WidgetKit
-- IOKit or system APIs where appropriate
-
-The first Linux prototype should prioritize functionality over animation.
-
-Deliverables:
-
-- Dashboard application
-- Configuration file
-- Metric adapters
-- Map component
-- Alert component
-- Packaging instructions
-
----
-
-## Phase 6: Ambient Details
-
-Add optional immersive effects.
-
-Possible features:
-
-- Startup sequence
-- Lock-screen animation
-- Park intercom sounds
-- System warning tones
-- Drive activity sounds
-- Idle screen
-- Faux operational messages
-- Optional scanlines
-- Optional CRT bloom
-- Optional screen curvature
-- “You didn’t say the magic word” Easter egg
-
-These effects must be optional and disabled by default where they could interfere with daily use.
+Immersive extras, off by default: startup sequence, park intercom / warning
+tones, idle screen, faux operational messages, optional CRT effects
+(scanlines / bloom / curvature), and the "you didn't say the magic word"
+easter egg.
 
 ---
 
@@ -1398,6 +697,9 @@ requirement, given the fair-use basis above.
 
 ## Design Reference
 
+A running list of mood/research references lives in
+[`docs/inspirations.md`](docs/inspirations.md).
+
 Primary research reference:
 
 - Fabien Sanglard, “Jurassic Park computers in excruciating detail”
@@ -1419,85 +721,11 @@ Use the article as historical and visual research only. Distributed NublarOS ass
 
 ### JurassicSystems.com Code Reference
 
-`jurassicsystems.com` and its public GitHub repository are useful as a
-code reference for implementing a fictional command interface and
-scripted park-system scenarios.
-
-Repository:
-
-- https://github.com/tojrobinson/jurassicsystems.com
-
-The project is MIT licensed and may be consulted for software patterns
-such as:
-
-- Command registration
-- Command history
-- Keyboard handling
-- Delayed terminal output
-- Scripted interface sequences
-- Audio and video event timing
-- Fake system errors
-- State-driven command availability
-- Interactive nostalgia experiences
-
-NublarOS should not use this project as its architectural foundation.
-Instead, it should implement a cleaner modular command-and-scenario
-engine with separate command parsing, state management, output
-rendering, event sequencing, and application launching.
-
-Suggested NublarOS structure:
-
-```text
-command-interface/
-├── commands/
-│   ├── help.ts
-│   ├── park-status.ts
-│   ├── stormtrack.ts
-│   └── navigator.ts
-├── scenarios/
-│   ├── storm.yaml
-│   └── security-lockout.yaml
-├── core/
-│   ├── parser.ts
-│   ├── registry.ts
-│   ├── history.ts
-│   ├── sequencer.ts
-│   └── renderer.ts
-└── assets/
-    └── original-sounds/
-```
-
-Potential NublarOS commands:
-
-```text
-help
-park-status
-grid-status
-weather
-stormtrack
-paddocks
-vehicles
-incidents
-archives
-navigator
-clear
-about
-```
-
-Potential scripted scenarios:
-
-```text
-scenario security-lockout
-scenario tropical-storm
-scenario auxiliary-power
-scenario fence-failure
-```
-
-The MIT license applies to the project’s authored software, but it does
-not automatically grant rights to any third-party movie clips, audio,
-logos, fonts, screenshots, or other copyrighted media included in the
-repository. NublarOS must replace all such material with original
-assets.
+The `jurassicsystems.com` project (MIT-licensed) is a useful code reference
+for the fictional command interface and scripted scenarios — command
+registration, history, delayed output, event timing, fake errors, etc. The
+suggested NublarOS command/scenario engine structure and reference notes have
+moved to [`docs/command-interface.md`](docs/command-interface.md).
 
 ---
 
@@ -1586,31 +814,17 @@ scripts/restore-theme.sh
 
 The installer should initially support only user-level changes.
 
-### Task 7: Choose the Dashboard Technology
+### Task 7: Choose the Dashboard Technology — **DONE**
 
-Evaluate:
+Qt/QML, GTK, Tauri, Eww, Conky, and Compose Multiplatform were evaluated on
+desktop integration, performance, packaging, animation, system-metric access,
+cross-platform potential, and maintenance.
 
-- Qt/QML
-- GTK
-- Tauri
-- Eww
-- Conky
-
-Recommend one based on:
-
-- Desktop integration
-- Performance
-- Packaging
-- Animation support
-- System-metric access
-- Cross-platform potential
-- Ease of maintenance
-
-Document the decision in:
-
-```text
-docs/architecture.md
-```
+**Decision: Kotlin / Compose Multiplatform for Desktop** — one language and UI
+toolkit across the dashboard, terminal, and future StormTrack / System
+Navigator, with native fullscreen, native process spawning, and a real
+embedded terminal (pty4j + jediterm). The full rationale is in
+[`docs/architecture.md`](docs/architecture.md).
 
 ---
 

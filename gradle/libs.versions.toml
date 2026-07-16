@@ -1,10 +1,11 @@
 [versions]
-kotlin = "2.1.0"
-compose = "1.7.3"
-oshi = "6.6.5"
+kotlin = "2.4.10"
+compose = "1.11.1"
+oshi = "7.4.0"
 pty4j = "0.13.12"
-jediterm = "3.49"
-lwjgl = "3.3.4"
+jediterm = "3.73"
+lwjgl = "3.4.2"
+kotlinxSerialization = "1.9.0"
 
 [libraries]
 oshi-core = { module = "com.github.oshi:oshi-core", version.ref = "oshi" }
@@ -12,8 +13,10 @@ pty4j = { module = "org.jetbrains.pty4j:pty4j", version.ref = "pty4j" }
 jediterm-core = { module = "org.jetbrains.jediterm:jediterm-core", version.ref = "jediterm" }
 jediterm-ui = { module = "org.jetbrains.jediterm:jediterm-ui", version.ref = "jediterm" }
 lwjgl-bom = { module = "org.lwjgl:lwjgl-bom", version.ref = "lwjgl" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 compose = { id = "org.jetbrains.compose", version.ref = "compose" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
