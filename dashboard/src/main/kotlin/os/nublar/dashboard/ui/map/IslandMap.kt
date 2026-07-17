@@ -7,8 +7,11 @@ import androidx.compose.foundation.TooltipPlacement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -56,6 +59,10 @@ import androidx.compose.ui.unit.sp
 import os.nublar.designsystem.NublarColors
 
 /** Loads a bundled PNG resource into an ImageBitmap. */
+/** Selection highlight colors: green = editable (edit mode on), yellow = locked (edit mode off). */
+private val SELECT_EDITABLE = Color(0xFF54D875)
+private val SELECT_LOCKED = Color(0xFFD5CD58)
+
 private fun loadBitmap(resource: String): ImageBitmap {
     val bytes = object {}.javaClass.classLoader.getResourceAsStream(resource)!!.readBytes()
     return org.jetbrains.skia.Image.makeFromEncoded(bytes).toComposeImageBitmap()
@@ -80,13 +87,19 @@ fun IslandMap(
     paddockShapes: List<PaddockShape> = emptyList(),
     selectedPaddockId: String? = null,
     selectedVertexIndex: Int? = null,
+    selectedFacilityId: String? = null,
     editMode: Boolean = false,
     onPaddockSelected: (String?) -> Unit = {},
     onVertexSelected: (Int?) -> Unit = {},
     onVertexMoved: (paddockId: String, vertexIndex: Int, newPos: FractionalPoint) -> Unit = { _, _, _ -> },
+    onFacilitySelected: (String?) -> Unit = {},
+    onFacilityMoved: (facilityId: String, newPos: FractionalPoint) -> Unit = { _, _ -> },
 ) {
     val islandBitmap = remember { loadBitmap("island.png") }
     val skullBitmap = remember { loadBitmap("icons/dino-skull.png") }
+    val brontoBitmap = remember { loadBitmap("icons/dino/brontosaurus.png") }
+    val raptorBitmap = remember { loadBitmap("icons/dino/raptor.png") }
+    val tyrannosaurusBitmap = remember { loadBitmap("icons/dino/tyrannosaurus.png") }
     val helipadBitmap = remember { loadBitmap("icons/facility-helipad.png") }
     val visitorCenterBitmap = remember { loadBitmap("icons/facility-visitor-center.png") }
     val dockBitmap = remember { loadBitmap("icons/facility-dock.png") }
@@ -106,7 +119,11 @@ fun IslandMap(
 
             if (MapLayer.Facilities in activeLayers) {
                 facilities.forEach { marker ->
-                    drawFacility(marker, pt(marker.position), w, helipadBitmap, visitorCenterBitmap, dockBitmap)
+                    drawFacility(
+                        marker, pt(marker.position), w, helipadBitmap, visitorCenterBitmap, dockBitmap,
+                        selected = marker.id == selectedFacilityId,
+                        editMode = editMode,
+                    )
                 }
             }
             if (MapLayer.Dinosaurs in activeLayers) {
@@ -124,7 +141,8 @@ fun IslandMap(
                 paddockShapes.forEach { shape ->
                     val isSel = shape.id == selectedPaddockId
                     drawPaddockShape(
-                        shape, ::pt, w, textMeasurer, skullBitmap,
+                        shape, ::pt, w, textMeasurer,
+                        speciesIcons(shape, skullBitmap, brontoBitmap, raptorBitmap, tyrannosaurusBitmap),
                         selected = isSel,
                         editMode = editMode,
                         selectedVertexIndex = if (isSel) selectedVertexIndex else null,
@@ -133,19 +151,25 @@ fun IslandMap(
             }
         }
 
-        // Interaction overlay for paddock selection (tap), vertex selection
-        // (tap a dot), vertex editing (drag), and arrow-key nudging.
-        if (MapLayer.Paddocks in activeLayers && paddockShapes.isNotEmpty()) {
-            PaddockInteractionOverlay(
-                paddockShapes = paddockShapes,
+        // Interaction overlay: paddock/facility selection (tap), vertex
+        // selection (tap a dot), vertex + facility dragging, and arrow-key nudging.
+        val paddocksInteractive = MapLayer.Paddocks in activeLayers && paddockShapes.isNotEmpty()
+        val facilitiesInteractive = MapLayer.Facilities in activeLayers && facilities.isNotEmpty()
+        if (paddocksInteractive || facilitiesInteractive) {
+            MapInteractionOverlay(
+                paddockShapes = if (paddocksInteractive) paddockShapes else emptyList(),
                 selectedPaddockId = selectedPaddockId,
                 selectedVertexIndex = selectedVertexIndex,
+                facilities = if (facilitiesInteractive) facilities else emptyList(),
+                selectedFacilityId = selectedFacilityId,
                 editMode = editMode,
                 widthPx = widthPx,
                 heightPx = heightPx,
                 onPaddockSelected = onPaddockSelected,
                 onVertexSelected = onVertexSelected,
                 onVertexMoved = onVertexMoved,
+                onFacilitySelected = onFacilitySelected,
+                onFacilityMoved = onFacilityMoved,
             )
         }
 
@@ -182,23 +206,28 @@ fun IslandMap(
 }
 
 /**
- * Transparent overlay over the map that handles paddock interaction:
- * tapping a paddock selects it; in [editMode], tapping a vertex handle
- * selects that dot (arrow keys then nudge it slowly), and dragging a handle
- * moves it. All coordinates convert between pixels and canvas-fractions via
- * the map's pixel size, so edits map 1:1 to the stored fractional vertices.
+ * Transparent overlay over the map that handles marker interaction:
+ * tapping a paddock or facility selects it; in [editMode], tapping a vertex
+ * handle selects that dot (arrow keys then nudge it slowly), dragging a handle
+ * moves it, and dragging a selected facility moves the whole facility. All
+ * coordinates convert between pixels and canvas-fractions via the map's pixel
+ * size, so edits map 1:1 to the stored fractional coordinates.
  */
 @Composable
-private fun PaddockInteractionOverlay(
+private fun MapInteractionOverlay(
     paddockShapes: List<PaddockShape>,
     selectedPaddockId: String?,
     selectedVertexIndex: Int?,
+    facilities: List<FacilityMarker>,
+    selectedFacilityId: String?,
     editMode: Boolean,
     widthPx: Float,
     heightPx: Float,
     onPaddockSelected: (String?) -> Unit,
     onVertexSelected: (Int?) -> Unit,
     onVertexMoved: (paddockId: String, vertexIndex: Int, newPos: FractionalPoint) -> Unit,
+    onFacilitySelected: (String?) -> Unit,
+    onFacilityMoved: (facilityId: String, newPos: FractionalPoint) -> Unit,
 ) {
     fun toFraction(offset: Offset) = FractionalPoint(offset.x / widthPx, offset.y / heightPx)
 
@@ -211,11 +240,19 @@ private fun PaddockInteractionOverlay(
     val onSelectedState = rememberUpdatedState(onPaddockSelected)
     val onVertexSelectedState = rememberUpdatedState(onVertexSelected)
     val onMovedState = rememberUpdatedState(onVertexMoved)
+    val facilitiesState = rememberUpdatedState(facilities)
+    val selectedFacilityState = rememberUpdatedState(selectedFacilityId)
+    val editModeState = rememberUpdatedState(editMode)
+    val onFacilitySelectedState = rememberUpdatedState(onFacilitySelected)
+    val onFacilityMovedState = rememberUpdatedState(onFacilityMoved)
+
+    // Facility hit radius in canvas fractions (slightly larger than the disc).
+    val facilityHitRadius = 0.028f
 
     val focusRequester = remember { FocusRequester() }
-    // A tapped vertex needs focus so arrow-key events arrive.
-    LaunchedEffect(selectedVertexIndex, editMode) {
-        if (editMode && selectedVertexIndex != null) {
+    // A selected vertex or facility needs focus so arrow-key events arrive.
+    LaunchedEffect(selectedVertexIndex, selectedFacilityId, editMode) {
+        if (editMode && (selectedVertexIndex != null || selectedFacilityId != null)) {
             focusRequester.requestFocus()
         }
     }
@@ -232,10 +269,7 @@ private fun PaddockInteractionOverlay(
             .focusable()
             .onKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                val id = selectedState.value ?: return@onKeyEvent false
-                val vi = selectedVertexState.value ?: return@onKeyEvent false
-                val shape = shapesState.value.firstOrNull { it.id == id } ?: return@onKeyEvent false
-                val v = shape.vertices.getOrNull(vi) ?: return@onKeyEvent false
+                if (!editModeState.value) return@onKeyEvent false   // no nudging when locked
                 val (dx, dy) = when (event.key) {
                     Key.DirectionLeft -> -stepX to 0f
                     Key.DirectionRight -> stepX to 0f
@@ -243,64 +277,125 @@ private fun PaddockInteractionOverlay(
                     Key.DirectionDown -> 0f to stepY
                     else -> return@onKeyEvent false
                 }
+                // A selected facility nudges the whole marker.
+                val facilityId = selectedFacilityState.value
+                if (facilityId != null) {
+                    val f = facilitiesState.value.firstOrNull { it.id == facilityId } ?: return@onKeyEvent false
+                    onFacilityMovedState.value(
+                        facilityId,
+                        FractionalPoint(
+                            (f.position.x + dx).coerceIn(0f, 1f),
+                            (f.position.y + dy).coerceIn(0f, 1f),
+                        ),
+                    )
+                    return@onKeyEvent true
+                }
+                // Otherwise nudge the selected paddock vertex.
+                val id = selectedState.value ?: return@onKeyEvent false
+                val vi = selectedVertexState.value ?: return@onKeyEvent false
+                val shape = shapesState.value.firstOrNull { it.id == id } ?: return@onKeyEvent false
+                val v = shape.vertices.getOrNull(vi) ?: return@onKeyEvent false
                 onMovedState.value(
                     id, vi,
                     FractionalPoint((v.x + dx).coerceIn(0f, 1f), (v.y + dy).coerceIn(0f, 1f)),
                 )
                 true
             }
+            // Single unified gesture handler so a plain click reliably selects
+            // (a facility, a paddock, or — in edit mode — a vertex node) without
+            // having to first drag. A press that then moves past touch slop turns
+            // into a drag of the grabbed facility/vertex (edit mode only).
             .pointerInput(Unit) {
-                detectTapGestures { offset ->
-                    val frac = toFraction(offset)
-                    // In edit mode, a tap on a handle of the selected paddock
-                    // selects that vertex; otherwise (re)select a paddock.
-                    if (editMode && selectedState.value != null) {
-                        val shape = shapesState.value.firstOrNull { it.id == selectedState.value }
-                        val vi = shape?.nearestVertexWithin(frac, 18f / widthPx)
-                        if (vi != null) {
-                            onVertexSelectedState.value(vi)
-                            focusRequester.requestFocus()
-                            return@detectTapGestures
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    val startFrac = toFraction(down.position)
+
+                    // Resolve what's under the pointer at press time.
+                    val facility = facilitiesState.value.nearestWithin(startFrac, facilityHitRadius)
+                    val selShape = shapesState.value.firstOrNull { it.id == selectedState.value }
+                    val vertexHit = if (editModeState.value && selShape != null) {
+                        selShape.nearestVertexWithin(startFrac, 18f / widthPx)
+                    } else {
+                        null
+                    }
+
+                    // In edit mode a grabbed facility or vertex can be dragged.
+                    val draggable = editModeState.value && (facility != null || vertexHit != null)
+                    if (draggable) {
+                        val slop = awaitTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
+                        if (slop != null) {
+                            // Became a drag: select the grabbed item, then follow.
+                            if (facility != null) {
+                                onFacilitySelectedState.value(facility.id)
+                                onSelectedState.value(null)
+                                onVertexSelectedState.value(null)
+                            } else if (vertexHit != null) {
+                                onVertexSelectedState.value(vertexHit)
+                            }
+                            fun apply(pos: Offset) {
+                                val f = toFraction(pos)
+                                if (facility != null) {
+                                    onFacilityMovedState.value(
+                                        facility.id,
+                                        FractionalPoint(f.x.coerceIn(0f, 1f), f.y.coerceIn(0f, 1f)),
+                                    )
+                                } else if (vertexHit != null && selShape != null) {
+                                    onMovedState.value(selShape.id, vertexHit, f)
+                                }
+                            }
+                            apply(slop.position)
+                            drag(down.id) { change ->
+                                change.consume()
+                                apply(change.position)
+                            }
+                            return@awaitEachGesture
                         }
                     }
-                    val hit = shapesState.value.lastOrNull { pointInPolygon(frac, it.toFractionalPoints()) }
-                    onSelectedState.value(hit?.id)
-                    onVertexSelectedState.value(null)
-                }
-            }
-            .then(
-                if (editMode) {
-                    Modifier.pointerInput(Unit) {
-                        var dragVertex = -1
-                        var dragShapeId: String? = null
-                        detectDragGestures(
-                            onDragStart = { start ->
-                                dragVertex = -1
-                                dragShapeId = null
-                                val shape = shapesState.value.firstOrNull { it.id == selectedState.value }
-                                    ?: return@detectDragGestures
-                                val vi = shape.nearestVertexWithin(toFraction(start), 18f / widthPx)
-                                    ?: return@detectDragGestures
-                                dragVertex = vi
-                                dragShapeId = shape.id
-                                onVertexSelectedState.value(vi)
-                            },
-                            onDrag = { change, _ ->
-                                val id = dragShapeId
-                                if (dragVertex >= 0 && id != null) {
-                                    change.consume()
-                                    onMovedState.value(id, dragVertex, toFraction(change.position))
-                                }
-                            },
-                            onDragEnd = { dragVertex = -1; dragShapeId = null },
-                            onDragCancel = { dragVertex = -1; dragShapeId = null },
-                        )
+
+                    // Not a drag → a click: select by hit priority.
+                    if (waitForUpOrCancellation() == null) return@awaitEachGesture
+                    when {
+                        // Vertex node (only non-null in edit mode with a paddock selected).
+                        vertexHit != null -> {
+                            onVertexSelectedState.value(vertexHit)
+                            focusRequester.requestFocus()
+                        }
+                        // Facility disc — clears any paddock/vertex selection.
+                        facility != null -> {
+                            onFacilitySelectedState.value(facility.id)
+                            onSelectedState.value(null)
+                            onVertexSelectedState.value(null)
+                        }
+                        // Otherwise (re)select whichever paddock contains the point.
+                        else -> {
+                            val hit = shapesState.value.lastOrNull {
+                                pointInPolygon(startFrac, it.toFractionalPoints())
+                            }
+                            onSelectedState.value(hit?.id)
+                            onVertexSelectedState.value(null)
+                            onFacilitySelectedState.value(null)
+                        }
                     }
-                } else {
-                    Modifier
-                },
-            ),
+                }
+            },
     )
+}
+
+/** The facility whose position is within [radiusFrac] of [frac] (nearest if several), or null. */
+private fun List<FacilityMarker>.nearestWithin(frac: FractionalPoint, radiusFrac: Float): FacilityMarker? {
+    val thresholdSq = radiusFrac * radiusFrac
+    var best: FacilityMarker? = null
+    var bestSq = thresholdSq
+    for (f in this) {
+        val dx = f.position.x - frac.x
+        val dy = f.position.y - frac.y
+        val d = dx * dx + dy * dy
+        if (d <= bestSq) {
+            bestSq = d
+            best = f
+        }
+    }
+    return best
 }
 
 /** Index of the vertex within [radiusFrac] of [frac], or null. */
@@ -354,14 +449,18 @@ private fun DrawScope.drawPaddockShape(
     pt: (FractionalPoint) -> Offset,
     w: Float,
     textMeasurer: TextMeasurer,
-    skull: ImageBitmap,
+    icons: List<ImageBitmap>,
     selected: Boolean,
     editMode: Boolean,
     selectedVertexIndex: Int?,
 ) {
     if (shape.vertices.isEmpty()) return
     val points = shape.toFractionalPoints()
-    val lineColor = if (selected) Color(0xFF54D875) else Color(0xFFE2E0BF)
+    val lineColor = when {
+        selected && editMode -> SELECT_EDITABLE   // editable
+        selected -> SELECT_LOCKED                 // locked (selected, edit off)
+        else -> Color(0xFFE2E0BF)                 // default cream
+    }
     val lineWidth = if (selected) w * 0.006f else w * 0.004f
 
     val path = Path().apply {
@@ -376,10 +475,19 @@ private fun DrawScope.drawPaddockShape(
     }
     drawPath(path, color = lineColor, style = Stroke(width = lineWidth, join = StrokeJoin.Round, cap = StrokeCap.Round))
 
-    // Species icon (skull disc) at the centroid, with the paddock name below.
+    // One species icon-disc per species, laid out side-by-side centered on the
+    // centroid, with the paddock name below.
     val centroid = polygonCentroid(points.map(pt))
     val iconRadius = w * 0.020f
-    drawSpeciesIcon(centroid, iconRadius, shape.carnivore, skull, w)
+    val gap = w * 0.006f
+    if (icons.isNotEmpty()) {
+        val totalWidth = icons.size * (2 * iconRadius) + (icons.size - 1) * gap
+        var discX = centroid.x - totalWidth / 2f + iconRadius
+        icons.forEach { icon ->
+            drawSpeciesIcon(Offset(discX, centroid.y), iconRadius, shape.carnivore, icon, w)
+            discX += 2 * iconRadius + gap
+        }
+    }
 
     val layout = textMeasurer.measure(
         text = shape.label,
@@ -400,15 +508,18 @@ private fun DrawScope.drawPaddockShape(
     )
     drawText(layout, topLeft = textTopLeft)
 
-    // Vertex handles — larger + filled when this paddock is selected in edit
-    // mode; the currently-selected vertex is highlighted (yellow, enlarged).
-    val handleRadius = if (selected && editMode) w * 0.008f else w * 0.005f
-    points.forEachIndexed { index, point ->
-        val o = pt(point)
-        val isSelectedVertex = index == selectedVertexIndex
-        val r = if (isSelectedVertex) handleRadius * 1.6f else handleRadius
-        drawCircle(Color.Black, radius = r * 1.3f, center = o)
-        drawCircle(if (isSelectedVertex) Color(0xFFD5CD58) else lineColor, radius = r, center = o)
+    // Vertex handles — only shown in edit mode (they're just drag targets).
+    // Larger + filled when this paddock is selected; the currently-selected
+    // vertex is highlighted (yellow, enlarged).
+    if (editMode) {
+        val handleRadius = if (selected) w * 0.008f else w * 0.005f
+        points.forEachIndexed { index, point ->
+            val o = pt(point)
+            val isSelectedVertex = index == selectedVertexIndex
+            val r = if (isSelectedVertex) handleRadius * 1.6f else handleRadius
+            drawCircle(Color.Black, radius = r * 1.3f, center = o)
+            drawCircle(if (isSelectedVertex) Color(0xFFD5CD58) else lineColor, radius = r, center = o)
+        }
     }
 }
 
@@ -477,16 +588,25 @@ private fun DrawScope.drawFacility(
     helipadIcon: ImageBitmap,
     visitorCenterIcon: ImageBitmap,
     dockIcon: ImageBitmap,
+    selected: Boolean = false,
+    editMode: Boolean = false,
 ) {
     // Blue disc + black border, matching the paddock species-icon style. Each
     // facility kind gets its own original silhouette.
     val facilityColor = Color(0xFF397FA4)
+    val radius = w * 0.020f
+    // Highlight ring when selected: green = editable (edit mode on),
+    // yellow = locked (selected but not editable).
+    if (selected) {
+        val ringColor = if (editMode) SELECT_EDITABLE else SELECT_LOCKED
+        drawCircle(ringColor, radius = radius * 1.35f, center = center, style = Stroke(width = w * 0.005f))
+    }
     val icon = when (marker.kind) {
         FacilityKind.Helipad -> helipadIcon
         FacilityKind.VisitorCenter -> visitorCenterIcon
         FacilityKind.Dock -> dockIcon
     }
-    drawIconDisc(center, w * 0.020f, facilityColor, icon, w, iconFillFactor = 1.35f)
+    drawIconDisc(center, radius, facilityColor, icon, w, iconFillFactor = 1.35f)
 }
 
 /**
@@ -519,6 +639,34 @@ private fun DrawScope.drawIconDisc(
         dstSize = IntSize(dstW.toInt(), dstH.toInt()),
         colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.Black),
     )
+}
+
+/**
+ * One silhouette icon per species in the paddock (so a paddock with several
+ * species shows several icons). Unmapped species fall back to the generic
+ * skull. Extend the `when` as more species icons are added.
+ *
+ * If a paddock has no species listed, returns a single skull so it still gets
+ * a marker.
+ */
+private fun speciesIcons(
+    shape: PaddockShape,
+    skull: ImageBitmap,
+    bronto: ImageBitmap,
+    raptor: ImageBitmap,
+    tyrannosaurus: ImageBitmap,
+): List<ImageBitmap> {
+    if (shape.species.isEmpty()) return listOf(skull)
+    return shape.species.map { name ->
+        val s = name.lowercase()
+        when {
+            "brachiosaur" in s || "bronto" in s || "sauropod" in s -> bronto
+            "raptor" in s -> raptor
+            "tyrannosaur" in s || "rex" in s -> tyrannosaurus
+            // "parasaurolophus" -> parasaurolophus  // TODO: add icon when the art exists
+            else -> skull
+        }
+    }
 }
 
 /**

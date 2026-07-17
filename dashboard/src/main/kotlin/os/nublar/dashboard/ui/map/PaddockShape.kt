@@ -33,10 +33,10 @@ data class PaddockVertex(val x: Float, val y: Float)
 data class PaddockCollection(val paddocks: List<PaddockShape> = emptyList())
 
 /**
- * A facility's definition as loaded from JSON. Coordinates are
- * island-normalized (0..1 within the source island) and fed through the
- * registration warp ([islandPoint]) at load — the same space as the
- * fan-map-derived POI data, distinct from the paddocks' canvas-fraction space.
+ * A facility's definition as loaded from / saved to JSON. Coordinates are
+ * canvas-fraction (0..1 relative to the map canvas) — drawn directly on this
+ * project's island artwork, same space as the paddocks, so the visual editor
+ * round-trips exactly (no registration warp involved).
  */
 @Serializable
 data class FacilityDefinition(
@@ -49,6 +49,23 @@ data class FacilityDefinition(
 
 @Serializable
 data class FacilityCollection(val facilities: List<FacilityDefinition> = emptyList())
+
+/**
+ * A vehicle's initial placement as loaded from / saved to JSON. Coordinates
+ * are canvas-fraction (0..1 relative to the map canvas) — drawn directly on
+ * this project's island artwork, same space as paddocks and facilities, so
+ * the editor round-trips exactly (no registration warp involved).
+ */
+@Serializable
+data class VehicleDefinition(
+    val id: String,
+    val x: Float,
+    val y: Float,
+    val headingDegrees: Float = 0f,
+)
+
+@Serializable
+data class VehicleCollection(val vehicles: List<VehicleDefinition> = emptyList())
 
 /** JSON with indentation, so a Copy-JSON round-trip stays human-editable. */
 val PaddockJson: Json = Json {
@@ -72,8 +89,8 @@ fun loadPaddockCollection(): PaddockCollection {
 fun PaddockCollection.toJson(): String = PaddockJson.encodeToString(this)
 
 /**
- * Loads [ISLA_NUBLAR_DATA_DIR]/facilities.json and projects each facility onto
- * this project's island artwork via [islandPoint]. Returns an empty list if absent.
+ * Loads [ISLA_NUBLAR_DATA_DIR]/facilities.json. Coordinates are canvas-fraction
+ * (used directly, no warp). Returns an empty list if absent.
  */
 fun loadFacilities(): List<FacilityMarker> {
     val stream = object {}.javaClass.classLoader.getResourceAsStream("$ISLA_NUBLAR_DATA_DIR/facilities.json")
@@ -81,6 +98,36 @@ fun loadFacilities(): List<FacilityMarker> {
     val text = stream.bufferedReader().use { it.readText() }
     val collection: FacilityCollection = PaddockJson.decodeFromString(text)
     return collection.facilities.map {
-        FacilityMarker(it.id, it.label, it.kind, islandPoint(it.x, it.y))
+        FacilityMarker(it.id, it.label, it.kind, FractionalPoint(it.x, it.y))
     }
+}
+
+/** Serializes facility markers back to pretty JSON (for the editor's Copy-JSON action). */
+fun List<FacilityMarker>.facilitiesToJson(): String {
+    val collection = FacilityCollection(
+        facilities = map { FacilityDefinition(it.id, it.label, it.kind, it.position.x, it.position.y) },
+    )
+    return PaddockJson.encodeToString(collection)
+}
+
+/**
+ * Loads [ISLA_NUBLAR_DATA_DIR]/vehicles.json. Coordinates are canvas-fraction
+ * (used directly, no warp). Returns an empty list if absent.
+ */
+fun loadVehicles(): List<VehicleMarker> {
+    val stream = object {}.javaClass.classLoader.getResourceAsStream("$ISLA_NUBLAR_DATA_DIR/vehicles.json")
+        ?: return emptyList()
+    val text = stream.bufferedReader().use { it.readText() }
+    val collection: VehicleCollection = PaddockJson.decodeFromString(text)
+    return collection.vehicles.map {
+        VehicleMarker(it.id, FractionalPoint(it.x, it.y), it.headingDegrees)
+    }
+}
+
+/** Serializes vehicle markers back to pretty JSON (for editor Copy-JSON / round-trips). */
+fun List<VehicleMarker>.vehiclesToJson(): String {
+    val collection = VehicleCollection(
+        vehicles = map { VehicleDefinition(it.id, it.position.x, it.position.y, it.headingDegrees) },
+    )
+    return PaddockJson.encodeToString(collection)
 }

@@ -384,11 +384,8 @@ object SampleMapData {
         ),
     )
 
-    val vehicles = listOf(
-        VehicleMarker("TOUR-01", islandPoint(0.40f, 0.50f), headingDegrees = 45f),
-        VehicleMarker("TOUR-02", islandPoint(0.55f, 0.72f), headingDegrees = 200f),
-        VehicleMarker("UTIL-04", islandPoint(0.36f, 0.33f), headingDegrees = 90f),
-    )
+    // Loaded from data/isla-nublar/vehicles.json (source of truth).
+    val vehicles = loadVehicles()
 
     val staff = listOf(
         StaffMarker("Operations - A. Ramirez", islandPoint(0.42f, 0.40f)),

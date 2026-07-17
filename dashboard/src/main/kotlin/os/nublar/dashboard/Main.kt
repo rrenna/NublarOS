@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Button
 import androidx.compose.material.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,7 +32,15 @@ private enum class Screen { Dashboard, ControlRoomPlanView, IslandMap }
  */
 fun main() = application {
     var isFullscreen by remember { mutableStateOf(false) }
-    var screen by remember { mutableStateOf(Screen.Dashboard) }
+    // Restore the last-active screen from persistent prefs (defaults to Dashboard).
+    var screen by remember {
+        mutableStateOf(
+            AppPreferences.lastScreen
+                ?.let { runCatching { Screen.valueOf(it) }.getOrNull() }
+                ?: Screen.Dashboard,
+        )
+    }
+    LaunchedEffect(screen) { AppPreferences.lastScreen = screen.name }
     // Shared across ControlRoomPlanView and IslandMapView so the pane split
     // stays put when switching screens via the SCREEN button.
     var splitFraction by remember { mutableStateOf(0.535f) }

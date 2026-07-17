@@ -1,0 +1,22 @@
+{
+    "vehicles": [
+        {
+            "id": "TOUR-01",
+            "x": 0.407142,
+            "y": 0.480178,
+            "headingDegrees": 45.0
+        },
+        {
+            "id": "TOUR-02",
+            "x": 0.503901,
+            "y": 0.651800,
+            "headingDegrees": 200.0
+        },
+        {
+            "id": "UTIL-04",
+            "x": 0.386225,
+            "y": 0.358168,
+            "headingDegrees": 90.0
+        }
+    ]
+}

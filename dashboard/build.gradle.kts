@@ -17,6 +17,13 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation(libs.oshi.core)
     implementation(libs.kotlinx.serialization.json)
+
+    testImplementation(kotlin("test"))
+}
+
+// kotlin("test") aligns to kotlin-test-junit5 once the JUnit Platform is enabled.
+tasks.test {
+    useJUnitPlatform()
 }
 
 compose.desktop {

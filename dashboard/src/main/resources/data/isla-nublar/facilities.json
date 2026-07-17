@@ -1,7 +1,25 @@
 {
-  "facilities": [
-    { "id": "visitor-center", "label": "Visitor Center", "kind": "VisitorCenter", "x": 0.3614, "y": 0.3314 },
-    { "id": "helipad", "label": "Helipad", "kind": "Helipad", "x": 0.5893, "y": 0.5249 },
-    { "id": "east-dock", "label": "East Dock", "kind": "Dock", "x": 0.8839, "y": 0.5968 }
-  ]
+    "facilities": [
+        {
+            "id": "visitor-center",
+            "label": "Visitor Center",
+            "kind": "VisitorCenter",
+            "x": 0.4075,
+            "y": 0.34642857
+        },
+        {
+            "id": "helipad",
+            "label": "Helipad",
+            "kind": "Helipad",
+            "x": 0.5475,
+            "y": 0.52678573
+        },
+        {
+            "id": "east-dock",
+            "label": "East Dock",
+            "kind": "Dock",
+            "x": 0.76607144,
+            "y": 0.5946429
+        }
+    ]
 }
