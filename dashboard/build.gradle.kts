@@ -24,6 +24,12 @@ dependencies {
 // kotlin("test") aligns to kotlin-test-junit5 once the JUnit Platform is enabled.
 tasks.test {
     useJUnitPlatform()
+    // Gradle is silent about passing tests by default — list every test's
+    // outcome so a green run is visible in the console.
+    testLogging {
+        events("passed", "failed", "skipped")
+        showStandardStreams = false
+    }
 }
 
 compose.desktop {

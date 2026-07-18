@@ -1,0 +1,16 @@
+{
+    "entries": [
+        { "text": "Ldg - Volume - JP", "status": "CLEAR" },
+        { "text": "Boot Successful - CLEAR", "status": "CLEAR" },
+        { "text": "Format Gabber - Chaires", "status": "CLEAR" },
+        { "text": "Operator - Andres Ramirez dkhd", "status": "CLEAR" },
+        { "text": "Vidnet - Camera VC net01", "status": "CLEAR" },
+        { "text": "Communications = Active", "status": "CLEAR" },
+        { "text": "Grid Status - Nominal", "status": "CLEAR" },
+        { "text": "Perimeter Fences - Armed", "status": "CLEAR" },
+        { "text": "Auxiliary Power - Standby", "status": "CLEAR" },
+        { "text": "Tour Route B - Clear", "status": "CLEAR" },
+        { "text": "Environmental Control - Nominal", "status": "CLEAR" },
+        { "text": "Mini Array Capacity - 62%", "status": "CLEAR" }
+    ]
+}

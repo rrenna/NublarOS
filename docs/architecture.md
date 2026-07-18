@@ -109,16 +109,36 @@ README describe the broader plan):
     helicopter for the helipad).
   - **Paddock editor** — paddocks are a JSON-serializable model
     (`PaddockShape`, kotlinx.serialization) loaded from
-    `resources/paddocks.json`; a standalone preview (`MapPreviewMain`, run
-    via `./gradlew :dashboard:runMapPreview`) supports layer toggles,
-    click-to-select, vertex dragging / arrow-key nudging, and Copy-JSON to
-    the clipboard for round-tripping edits back into the file.
+    `resources/data/isla-nublar/paddocks.json`; a standalone preview
+    (`MapPreviewMain`, run via `./gradlew :dashboard:runMapPreview`) supports
+    layer toggles, click-to-select, vertex dragging / arrow-key nudging, and
+    Copy-JSON to the clipboard for round-tripping edits back into the file.
 - **`command-interface/`** — the pty4j + jediterm embedded terminal wrapped
   in a Compose `SwingPanel` (`EmbeddedTerminal` / `EmbeddedTerminalView`).
 - **`stormtrack/`**, **`system-navigator/`** — placeholder modules only.
-- **`linux/terminal/`**, **`scripts/`** — the ParkNet terminal profile and
-  the reversible install/backup/restore scripts (untested on real Linux; see
-  `docs/environment.md`).
+
+### UI architecture: Screens → ViewModels → Repositories
+
+The `dashboard` module follows an MVVM-with-repository layering:
+
+- **Screens** (`ui/screens/`, plus the `MapPreviewMain` harness) are pure
+  Compose UI. Each discrete screen takes a ViewModel parameter (defaulted via
+  `remember { ... }`, overridable for tests/previews) and renders its state;
+  user actions call the ViewModel's intent methods. Reusable components like
+  `IslandMap` never load data — all layer data comes in as parameters.
+- **ViewModels** (`viewmodel/`) are plain Kotlin classes holding Compose
+  snapshot state (`mutableStateOf` with `private set`) — no AndroidX
+  lifecycle on desktop. One per discrete screen: `AppViewModel` (active
+  screen + persistence, fullscreen, pane split), `IslandMapViewModel`,
+  `ControlRoomViewModel`, `MapPreviewViewModel` (the map editor's full state
+  machine: layers, selection, edit/pan/zoom, vertex operations).
+- **Repositories** (`data/`) own model retrieval. `IslaNublarRepository` is
+  the interface; `BundledIslaNublarRepository` reads the JSON bundled under
+  `resources/data/isla-nublar/` (paddocks, facilities, vehicles) and serves
+  in-code samples for models without a JSON file yet (dinosaurs, staff).
+  ViewModels take the repository as a constructor parameter (defaulted), so
+  the watch-along mode can later swap in a live/simulated source without
+  touching screens.
 
 ### Dependency versions
 

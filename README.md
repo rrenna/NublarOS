@@ -115,9 +115,9 @@ on **macOS, Linux, and Windows**.
 
 Deep OS-level theming (installing NublarOS as a KDE/GNOME desktop theme, SDDM
 login, etc.) is **out of scope** — the project deliberately keeps everything
-inside the app rather than modifying the host desktop. Some early theme-install
-scaffolding still exists under `scripts/` and `linux/` from before this
-decision; it is legacy and not part of the current direction.
+inside the app rather than modifying the host desktop. The legacy theme-install
+scaffolding (`scripts/`, `linux/`, `macos/`) has been removed; packaging is now
+handled by `jpackage` from the Compose Desktop build.
 
 ---
 
@@ -554,17 +554,24 @@ nublaros/
 │   ├── cursors/
 │   ├── sounds/
 │   └── fonts/
-├── linux/
-│   ├── common/
-│   ├── kde/
-│   ├── gnome/
-│   ├── terminal/
-│   └── scripts/
-├── macos/
-│   ├── dashboard/
-│   ├── terminal/
-│   ├── icons/
-│   └── wallpapers/
+├── docs/
+│   ├── architecture.md
+│   ├── inspirations.md
+│   ├── naming.md
+│   └── stormtrack.md
+│   └── system-navigator.md
+├── design/
+│   ├── mockups/
+│   ├── source-assets/
+│   ├── component-reference.md
+│   ├── palette.md
+│   └── typography.md
+├── design-system/
+│   ├── src/
+│   └── build.gradle.kts
+├── command-interface/
+│   ├── src/
+│   └── build.gradle.kts
 ├── dashboard/
 │   ├── src/
 │   ├── assets/
@@ -582,11 +589,6 @@ nublaros/
 │   ├── shaders/
 │   ├── config/
 │   └── tests/
-├── scripts/
-│   ├── install.sh
-│   ├── uninstall.sh
-│   ├── backup-current-theme.sh
-│   └── restore-theme.sh
 └── screenshots/
 ```
 
@@ -624,35 +626,6 @@ audio:
   startup_sound: true
   warning_sounds: true
 ```
-
----
-
-## Safety and Reversibility
-
-Theme installation must be reversible.
-
-Before making changes, the installer should:
-
-- Detect the desktop environment
-- Back up current theme settings
-- Back up terminal settings
-- Record installed packages
-- Avoid overwriting user-created files
-- Create a restore script
-- Warn before modifying login-manager configuration
-
-Required scripts:
-
-```text
-backup-current-theme.sh
-install.sh
-uninstall.sh
-restore-theme.sh
-```
-
-The project should not require root access for components that can be installed at the user level.
-
-Login-screen and system-wide changes should be optional.
 
 ---
 
@@ -800,19 +773,6 @@ Produce an original wallpaper specification using:
 - Restrained status overlays
 
 Do not use copyrighted film assets.
-
-### Task 6: Build the Minimum Viable Installer
-
-Create:
-
-```text
-scripts/backup-current-theme.sh
-scripts/install.sh
-scripts/uninstall.sh
-scripts/restore-theme.sh
-```
-
-The installer should initially support only user-level changes.
 
 ### Task 7: Choose the Dashboard Technology — **DONE**
 

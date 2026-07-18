@@ -1,0 +1,95 @@
+{
+    "dinosaurs": [
+        {
+            "species": "LargePredator",
+            "x": 0.64465034,
+            "y": 0.3533184,
+            "label": "Tyrannosaurus paddock",
+            "confidence": "high"
+        },
+        {
+            "species": "LargePredator",
+            "x": 0.7130382,
+            "y": 0.41604537,
+            "label": "Baryonyx paddock",
+            "confidence": "high"
+        },
+        {
+            "species": "PackPredator",
+            "x": 0.33448303,
+            "y": 0.38494357,
+            "label": "Velociraptor area",
+            "confidence": "high"
+        },
+        {
+            "species": "SwiftRunner",
+            "x": 0.4948284,
+            "y": 0.36464024,
+            "label": "Gallimimus paddock",
+            "confidence": "high"
+        },
+        {
+            "species": "LongNeckGrazer",
+            "x": 0.522459,
+            "y": 0.29497865,
+            "label": "Parasaurolophus paddock",
+            "confidence": "high"
+        },
+        {
+            "species": "LongNeckGrazer",
+            "x": 0.56119597,
+            "y": 0.30239725,
+            "label": "Brachiosaurus paddock",
+            "confidence": "high"
+        },
+        {
+            "species": "FrilledGrazer",
+            "x": 0.6316421,
+            "y": 0.2517075,
+            "label": "Triceratops paddock",
+            "confidence": "high"
+        },
+        {
+            "species": "PackPredator",
+            "x": 0.2867037,
+            "y": 0.41028735,
+            "label": "Dilophosaurus paddock",
+            "confidence": "medium"
+        },
+        {
+            "species": "PackPredator",
+            "x": 0.5815921,
+            "y": 0.5687957,
+            "label": "Proceratosaurus paddock",
+            "confidence": "medium"
+        },
+        {
+            "species": "PackPredator",
+            "x": 0.6829993,
+            "y": 0.39492467,
+            "label": "Herrerasaurus paddock",
+            "confidence": "medium"
+        },
+        {
+            "species": "PackPredator",
+            "x": 0.6636882,
+            "y": 0.27516168,
+            "label": "Segisaurus paddock",
+            "confidence": "medium"
+        },
+        {
+            "species": "LargePredator",
+            "x": 0.4871893,
+            "y": 0.4336767,
+            "label": "Metriacanthosaurus paddock",
+            "confidence": "medium"
+        },
+        {
+            "species": "LargePredator",
+            "x": 0.44786328,
+            "y": 0.38711107,
+            "label": "Unresolved carnivore",
+            "confidence": "low"
+        }
+    ]
+}

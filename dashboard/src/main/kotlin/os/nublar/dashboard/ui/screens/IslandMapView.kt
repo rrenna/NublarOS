@@ -21,10 +21,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -42,8 +38,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import os.nublar.dashboard.ui.map.IslandMap
+import os.nublar.dashboard.ui.map.MapLayer
 import os.nublar.dashboard.ui.map.MapViewport
-import os.nublar.dashboard.ui.map.loadPaddockCollection
+import os.nublar.dashboard.viewmodel.IslandMapViewModel
 import os.nublar.designsystem.NublarColors
 
 /**
@@ -59,6 +56,7 @@ fun IslandMapView(
     onSwitchScreen: () -> Unit = {},
     splitFraction: Float = 0.535f,
     onSplitFractionChange: (Float) -> Unit = {},
+    viewModel: IslandMapViewModel,
 ) {
     Box(
         modifier = Modifier
@@ -71,8 +69,8 @@ fun IslandMapView(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 splitFraction = splitFraction,
                 onSplitFractionChange = onSplitFractionChange,
-                left = { m -> PaddockMapPanel(modifier = m) },
-                right = { m -> IslandRightColumn(modifier = m, onClose = onClose) },
+                left = { m -> PaddockMapPanel(viewModel = viewModel, modifier = m) },
+                right = { m -> IslandRightColumn(modifier = m, onClose = onClose, viewModel = viewModel) },
             )
             BottomBar(screenLabel = "Animal Paddocks", onScreenClick = onSwitchScreen)
         }
@@ -80,9 +78,8 @@ fun IslandMapView(
 }
 
 @Composable
-private fun PaddockMapPanel(modifier: Modifier = Modifier) {
+private fun PaddockMapPanel(viewModel: IslandMapViewModel, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
-        val paddocks = remember { loadPaddockCollection().paddocks }
         MapViewport(
             contentWidth = 1200.dp,
             contentHeight = 1200.dp,
@@ -95,7 +92,15 @@ private fun PaddockMapPanel(modifier: Modifier = Modifier) {
         ) {
             IslandMap(
                 modifier = Modifier.size(1200.dp, 1200.dp),
-                paddockShapes = paddocks,
+                // Dinosaurs, Staff, and Vehicles layers off by default on this screen.
+                activeLayers = MapLayer.entries.toSet() - MapLayer.Dinosaurs - MapLayer.Staff - MapLayer.Vehicles,
+                paddockShapes = viewModel.paddocks,
+                facilities = viewModel.facilities,
+                dinosaurs = viewModel.dinosaurs,
+                vehicles = viewModel.vehicles,
+                staff = viewModel.staff,
+                selectedPaddockId = viewModel.selectedPaddockId,
+                onPaddockSelected = { viewModel.selectPaddock(it) },
             )
         }
         PaddockLevelBar()
@@ -164,24 +169,45 @@ private fun PaddockLevelBadge() {
 }
 
 @Composable
-private fun IslandRightColumn(modifier: Modifier = Modifier, onClose: () -> Unit) {
+private fun IslandRightColumn(
+    modifier: Modifier = Modifier,
+    onClose: () -> Unit,
+    viewModel: IslandMapViewModel,
+) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         TabRow(label = "VEHICLE", tabs = listOf("TOUR", "POWER", "TIME"))
         VehicleStatusPanel(modifier = Modifier.weight(1f).fillMaxWidth())
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            ChunkyButton("HOLD", modifier = Modifier.weight(1f))
-            ChunkyButton("QUIT", modifier = Modifier.weight(1f), onClick = onClose)
-            ChunkyButton("NEW", modifier = Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            ChunkyButton("NEXT", modifier = Modifier.weight(1f))
-            ChunkyButton("◄◄", modifier = Modifier.weight(1f))
-            ChunkyButton("►►", modifier = Modifier.weight(1f))
-            ChunkyButton("►", modifier = Modifier.weight(1f), highlight = true)
-            ChunkyButton("■", modifier = Modifier.weight(1f))
+        Column(
+            // Beveled outer panel around the whole cluster (matches the film
+            // screen): a RECESSED frame (dark top/left, light bottom/right) with
+            // the gray field showing around the keys, which stay raised.
+            modifier = Modifier
+                .background(NublarColors.MonitorGray)
+                .bevelBorder(raised = false, width = 2.dp)
+                .padding(3.dp),
+        ) {
+            Row {
+                ChunkyButton("HOLD", modifier = Modifier.weight(1f))
+                ChunkyButton("QUIT", modifier = Modifier.weight(1f), onClick = onClose)
+                ChunkyButton("NEW", modifier = Modifier.weight(1f))
+            }
+            Row {
+                // NEXT spans the same width as HOLD above (1/3 of the row): weight 2
+                // vs. the four playback keys at weight 1 each -> 2/6 = 1/3.
+                ChunkyButton("NEXT", modifier = Modifier.weight(2f))
+                ChunkyButton("◄◄", modifier = Modifier.weight(1f))
+                ChunkyButton("►►", modifier = Modifier.weight(1f))
+                ChunkyButton("►", modifier = Modifier.weight(1f), highlight = true)
+                ChunkyButton("■", modifier = Modifier.weight(1f))
+            }
         }
         TabRow(label = "GLITCHES", tabs = listOf("MAPS", "SYSTEM", "EMERG."))
-        QuadrantLog(modifier = Modifier.weight(1f).fillMaxWidth())
+        QuadrantLog(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            selectedPaddockId = viewModel.selectedPaddockId,
+            paddockIdForName = viewModel::paddockIdForName,
+            onSelectPaddock = viewModel::selectPaddock,
+        )
     }
 }
 
@@ -328,7 +354,13 @@ private fun VehicleSilhouette(kind: VehicleKind, modifier: Modifier = Modifier) 
 private data class QuadrantEntry(val quadrant: String, val paddock: String, val failed: Boolean)
 
 @Composable
-private fun QuadrantLog(modifier: Modifier = Modifier) {
+private fun QuadrantLog(
+    modifier: Modifier = Modifier,
+    selectedPaddockId: String? = null,
+    // Maps a glitch row's paddock name to a defined paddock id (null = no match).
+    paddockIdForName: (String) -> String? = { null },
+    onSelectPaddock: (String?) -> Unit = {},
+) {
     val entries = listOf(
         QuadrantEntry("qp 81", "Gallimimus Paddock", failed = true),
         QuadrantEntry("qp 82", "Reserve Paddock", failed = true),
@@ -349,7 +381,21 @@ private fun QuadrantLog(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         entries.forEach { entry ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Only rows whose paddock name matches a defined paddock are
+            // tappable; others (e.g. "Aviary Sector") render as plain text.
+            val matchedId = paddockIdForName(entry.paddock)
+            val isSelected = matchedId != null && matchedId == selectedPaddockId
+            val rowModifier = if (matchedId != null) {
+                Modifier
+                    .fillMaxWidth()
+                    .then(if (isSelected) Modifier.background(NublarColors.HighlightYellow) else Modifier)
+                    .clickable { onSelectPaddock(if (isSelected) null else matchedId) }
+                    .pointerHoverIcon(PointerIcon.Hand)
+                    .padding(vertical = 1.dp)
+            } else {
+                Modifier.fillMaxWidth()
+            }
+            Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
                         .width(72.dp)
@@ -368,7 +414,8 @@ private fun QuadrantLog(modifier: Modifier = Modifier) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     "Quadrant: ${entry.quadrant} ${entry.paddock}",
-                    color = Color.Black,
+                    // Matched (linked) rows read as a link; unmatched stay plain black.
+                    color = if (matchedId != null) NublarColors.MapBlue else Color.Black,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     fontStyle = FontStyle.Italic,

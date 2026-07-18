@@ -1,0 +1,110 @@
+{
+    "recipes": [
+        {
+            "id": "nw_shared_herbivore",
+            "label": "Shared northwest herbivore area",
+            "species": [
+                "Parasaurolophus",
+                "Brachiosaurus"
+            ],
+            "usesFenceSegments": [
+                "outer_north",
+                "upper_west_span",
+                "north_divider"
+            ],
+            "quality": "Approximate"
+        },
+        {
+            "id": "triceratops_region",
+            "label": "Triceratops region",
+            "species": [
+                "Triceratops"
+            ],
+            "usesFenceSegments": [
+                "outer_north",
+                "north_divider",
+                "north_inner_run",
+                "outer_east"
+            ],
+            "quality": "Approximate"
+        },
+        {
+            "id": "segisaurus_strip",
+            "label": "Segisaurus strip",
+            "species": [
+                "Segisaurus"
+            ],
+            "usesFenceSegments": [
+                "outer_north",
+                "outer_east",
+                "east_mid_horizontal"
+            ],
+            "quality": "Approximate"
+        },
+        {
+            "id": "gallimimus_area",
+            "label": "Gallimimus area",
+            "species": [
+                "Gallimimus"
+            ],
+            "usesFenceSegments": [
+                "upper_west_span",
+                "west_center_vertical",
+                "south_diagonal"
+            ],
+            "quality": "GoodCandidate"
+        },
+        {
+            "id": "trex_paddock",
+            "label": "Tyrannosaurus paddock",
+            "species": [
+                "Tyrannosaurus"
+            ],
+            "usesFenceSegments": [
+                "trex_outline_west_south",
+                "trex_outline_north_east"
+            ],
+            "quality": "GoodCandidate"
+        },
+        {
+            "id": "east_middle_area",
+            "label": "East-middle area",
+            "species": [
+                "Herrerasaurus"
+            ],
+            "usesFenceSegments": [
+                "east_mid_divider",
+                "east_mid_horizontal",
+                "east_lower_left",
+                "outer_east"
+            ],
+            "quality": "Approximate"
+        },
+        {
+            "id": "baryonyx_area",
+            "label": "Baryonyx area",
+            "species": [
+                "Baryonyx"
+            ],
+            "usesFenceSegments": [
+                "outer_east",
+                "east_lower_left",
+                "east_lower_bottom"
+            ],
+            "quality": "GoodCandidate"
+        },
+        {
+            "id": "south_outer_area",
+            "label": "South outer area",
+            "species": [
+                "Proceratosaurus"
+            ],
+            "usesFenceSegments": [
+                "outer_south",
+                "outer_west",
+                "helipad_spur"
+            ],
+            "quality": "Approximate"
+        }
+    ]
+}

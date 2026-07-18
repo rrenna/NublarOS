@@ -98,7 +98,19 @@ fun MapViewport(
         // clipped by clipToBounds above.
         Box(
             modifier = Modifier
-                .offset { IntOffset(offset.x.roundToInt(), offset.y.roundToInt()) }
+                .offset {
+                    // Re-clamp at render time so a content-size change (e.g. the
+                    // preview's zoom buttons shrinking the map) can't leave the
+                    // stored offset pointing at empty space off-screen.
+                    val contentW = contentWidth.toPx()
+                    val contentH = contentHeight.toPx()
+                    val minX = (constraints.maxWidth - contentW).coerceAtMost(0f)
+                    val minY = (constraints.maxHeight - contentH).coerceAtMost(0f)
+                    IntOffset(
+                        offset.x.coerceIn(minX, contentW * 0.10f).roundToInt(),
+                        offset.y.coerceIn(minY, contentH * 0.10f).roundToInt(),
+                    )
+                }
                 .requiredSize(contentWidth, contentHeight),
         ) {
             content()

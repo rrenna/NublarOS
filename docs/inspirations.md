@@ -5,11 +5,21 @@ the control-room aesthetic, park-operations UI language, and film-accurate
 details. These are research/mood references only; distributed NublarOS assets
 remain original (see "Legal and Asset Guidelines" in the [README](../README.md)).
 
+## Images
+
+- **[Stills from InGen Harvest Operation (1997)](https://www.reddit.com/r/JurassicPark/comments/1uyx5bx/more_stills_from_ingen_harvest_operation_1997/)**
+  — production stills reference for InGen field/operations hardware and screen
+  chrome; informs the control panel and button styling.
+
 ## Video
 
 - **[Jurassic Park control room / computer systems reference](https://www.youtube.com/watch?v=-OhLl0tdLVA)**
   — video reference for the control-room screens and interactions.
   <!-- TODO: replace with the exact video title + channel once confirmed. -->
+
+- **[Jurassic Park Systems CCTV](https://www.youtube.com/watch?v=Xl4bDROhwd0&t=345s)**
+  — recreation of the park's CCTV/security-camera system; reference for the
+  security screen's camera feeds and surveillance UI (link starts at 5:45).
 
 ## Articles
 

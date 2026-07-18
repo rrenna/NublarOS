@@ -26,7 +26,9 @@ class SystemMetricsReader {
         val cpu = hal.processor
         val prevTicks = cpu.systemCpuLoadTicks
         Thread.sleep(200)
-        val load = cpu.getSystemCpuLoadBetweenTicks(prevTicks) * 100.0
+        // getSystemCpuLoadBetweenTicks returns -1.0 when tick data is
+        // insufficient (e.g. first call) — clamp so the UI never shows "-100%".
+        val load = (cpu.getSystemCpuLoadBetweenTicks(prevTicks) * 100.0).coerceIn(0.0, 100.0)
 
         val mem = hal.memory
         val memUsedPercent = (mem.total - mem.available).toDouble() / mem.total * 100.0

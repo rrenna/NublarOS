@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -34,7 +35,15 @@ fun MetricsGrid(
 
     LaunchedEffect(metricsReader) {
         while (true) {
-            snapshot = withContext(Dispatchers.IO) { metricsReader.snapshot() }
+            try {
+                snapshot = withContext(Dispatchers.IO) { metricsReader.snapshot() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Keep the last good snapshot and keep polling — a transient
+                // oshi failure must not silently freeze every tile forever.
+                System.err.println("Metrics snapshot failed: ${e.message}")
+            }
             delay(REFRESH_INTERVAL_MS)
         }
     }

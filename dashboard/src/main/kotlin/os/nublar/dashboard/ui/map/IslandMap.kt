@@ -22,12 +22,17 @@ import androidx.compose.material.Text
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -42,6 +47,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
@@ -64,8 +70,61 @@ private val SELECT_EDITABLE = Color(0xFF54D875)
 private val SELECT_LOCKED = Color(0xFFD5CD58)
 
 private fun loadBitmap(resource: String): ImageBitmap {
-    val bytes = object {}.javaClass.classLoader.getResourceAsStream(resource)!!.readBytes()
+    val bytes = object {}.javaClass.classLoader.getResourceAsStream(resource)!!.use { it.readBytes() }
     return org.jetbrains.skia.Image.makeFromEncoded(bytes).toComposeImageBitmap()
+}
+
+/** All raster assets drawn by [IslandMap], loaded together on a background thread. */
+private data class MapBitmaps(
+    val island: ImageBitmap,
+    val skull: ImageBitmap,
+    val bronto: ImageBitmap,
+    val raptor: ImageBitmap,
+    val tyrannosaurus: ImageBitmap,
+    val triceratops: ImageBitmap,
+    val gallimimus: ImageBitmap,
+    val segisaurus: ImageBitmap,
+    val metriacanthosaurus: ImageBitmap,
+    val parasaurolophus: ImageBitmap,
+    val proceratosaurus: ImageBitmap,
+    val herrerasaurus: ImageBitmap,
+    val dilophosaurus: ImageBitmap,
+    val helipad: ImageBitmap,
+    val visitorCenter: ImageBitmap,
+    val dock: ImageBitmap,
+)
+
+/**
+ * Loads the map's raster assets on [Dispatchers.IO] so the large island PNG
+ * and species icons don't decode on the UI thread during first composition.
+ * Returns `null` until loading completes.
+ */
+@Composable
+private fun rememberMapBitmaps(): MapBitmaps? {
+    var bitmaps by remember { mutableStateOf<MapBitmaps?>(null) }
+    LaunchedEffect(Unit) {
+        bitmaps = withContext(Dispatchers.IO) {
+            MapBitmaps(
+                island = loadBitmap("island.png"),
+                skull = loadBitmap("icons/dino-skull.png"),
+                bronto = loadBitmap("icons/dino/brontosaurus.png"),
+                raptor = loadBitmap("icons/dino/raptor.png"),
+                tyrannosaurus = loadBitmap("icons/dino/tyrannosaurus.png"),
+                triceratops = loadBitmap("icons/dino/triceratops.png"),
+                gallimimus = loadBitmap("icons/dino/gallimimus.png"),
+                segisaurus = loadBitmap("icons/dino/segisaurus.png"),
+                metriacanthosaurus = loadBitmap("icons/dino/metriacanthosaurus.png"),
+                parasaurolophus = loadBitmap("icons/dino/parasaurolophus.png"),
+                proceratosaurus = loadBitmap("icons/dino/proceratosaurus.png"),
+                herrerasaurus = loadBitmap("icons/dino/herrerasaurus.png"),
+                dilophosaurus = loadBitmap("icons/dino/dilophosaurus.png"),
+                helipad = loadBitmap("icons/facility-helipad.png"),
+                visitorCenter = loadBitmap("icons/facility-visitor-center.png"),
+                dock = loadBitmap("icons/facility-dock.png"),
+            )
+        }
+    }
+    return bitmaps
 }
 
 /**
@@ -80,11 +139,17 @@ private fun loadBitmap(resource: String): ImageBitmap {
 fun IslandMap(
     modifier: Modifier = Modifier,
     activeLayers: Set<MapLayer> = MapLayer.entries.toSet(),
-    facilities: List<FacilityMarker> = SampleMapData.facilities,
-    dinosaurs: List<DinosaurMarker> = SampleMapData.dinosaurs,
-    vehicles: List<VehicleMarker> = SampleMapData.vehicles,
-    staff: List<StaffMarker> = SampleMapData.staff,
+    // Pure UI component: all layer data comes from the caller (screens feed it
+    // from their ViewModel, which reads a repository) — no data loading here.
+    facilities: List<FacilityMarker> = emptyList(),
+    dinosaurs: List<DinosaurMarker> = emptyList(),
+    vehicles: List<VehicleMarker> = emptyList(),
+    staff: List<StaffMarker> = emptyList(),
     paddockShapes: List<PaddockShape> = emptyList(),
+    // Current map zoom (1f = unzoomed). Paddock markers dampen against this so
+    // they grow sub-linearly with the map instead of ballooning 1:1 — see
+    // drawPaddockShape. Left at 1f by the fixed-size screens (no zoom there).
+    zoom: Float = 1f,
     selectedPaddockId: String? = null,
     selectedVertexIndex: Int? = null,
     selectedFacilityId: String? = null,
@@ -95,14 +160,8 @@ fun IslandMap(
     onFacilitySelected: (String?) -> Unit = {},
     onFacilityMoved: (facilityId: String, newPos: FractionalPoint) -> Unit = { _, _ -> },
 ) {
-    val islandBitmap = remember { loadBitmap("island.png") }
-    val skullBitmap = remember { loadBitmap("icons/dino-skull.png") }
-    val brontoBitmap = remember { loadBitmap("icons/dino/brontosaurus.png") }
-    val raptorBitmap = remember { loadBitmap("icons/dino/raptor.png") }
-    val tyrannosaurusBitmap = remember { loadBitmap("icons/dino/tyrannosaurus.png") }
-    val helipadBitmap = remember { loadBitmap("icons/facility-helipad.png") }
-    val visitorCenterBitmap = remember { loadBitmap("icons/facility-visitor-center.png") }
-    val dockBitmap = remember { loadBitmap("icons/facility-dock.png") }
+    val bitmaps = rememberMapBitmaps()
+    if (bitmaps == null) return // assets loading on Dispatchers.IO
     val textMeasurer = rememberTextMeasurer()
 
     BoxWithConstraints(modifier = modifier) {
@@ -115,12 +174,12 @@ fun IslandMap(
             val h = size.height
             fun pt(p: FractionalPoint) = Offset(w * p.x, h * p.y)
 
-            drawImage(islandBitmap, dstSize = IntSize(w.toInt(), h.toInt()))
+            drawImage(bitmaps.island, dstSize = IntSize(w.toInt(), h.toInt()))
 
             if (MapLayer.Facilities in activeLayers) {
                 facilities.forEach { marker ->
                     drawFacility(
-                        marker, pt(marker.position), w, helipadBitmap, visitorCenterBitmap, dockBitmap,
+                        marker, pt(marker.position), w, bitmaps.helipad, bitmaps.visitorCenter, bitmaps.dock,
                         selected = marker.id == selectedFacilityId,
                         editMode = editMode,
                     )
@@ -136,16 +195,36 @@ fun IslandMap(
                 staff.forEach { marker -> drawStaff(marker, pt(marker.position), w) }
             }
             // Paddocks drawn last so their outlines/handles sit on top of all
-            // other markers — easier to see and select.
+            // other markers — easier to see and select. Two passes: every fence
+            // first, then every icon/label on top, so a neighboring paddock's
+            // fence can never paint over another paddock's dinosaur icons.
             if (MapLayer.Paddocks in activeLayers) {
-                paddockShapes.forEach { shape ->
+                // Render the selected paddock LAST so it sits above every other
+                // paddock. sortedBy is stable, so unselected paddocks keep their
+                // order and the selected one (predicate true) moves to the end.
+                val ordered = if (selectedPaddockId == null) paddockShapes
+                    else paddockShapes.sortedBy { it.id == selectedPaddockId }
+                ordered.forEach { shape ->
+                    drawPaddockFence(
+                        shape, ::pt, w,
+                        selected = shape.id == selectedPaddockId,
+                        editMode = editMode,
+                    )
+                }
+                ordered.forEach { shape ->
                     val isSel = shape.id == selectedPaddockId
-                    drawPaddockShape(
+                    drawPaddockMarker(
                         shape, ::pt, w, textMeasurer,
-                        speciesIcons(shape, skullBitmap, brontoBitmap, raptorBitmap, tyrannosaurusBitmap),
+                        speciesIcons(
+                            shape, bitmaps.skull, bitmaps.bronto, bitmaps.raptor,
+                            bitmaps.tyrannosaurus, bitmaps.triceratops, bitmaps.gallimimus, bitmaps.segisaurus,
+                            bitmaps.metriacanthosaurus, bitmaps.parasaurolophus, bitmaps.proceratosaurus,
+                            bitmaps.herrerasaurus, bitmaps.dilophosaurus,
+                        ),
                         selected = isSel,
                         editMode = editMode,
                         selectedVertexIndex = if (isSel) selectedVertexIndex else null,
+                        zoom = zoom,
                     )
                 }
             }
@@ -155,6 +234,45 @@ fun IslandMap(
         // selection (tap a dot), vertex + facility dragging, and arrow-key nudging.
         val paddocksInteractive = MapLayer.Paddocks in activeLayers && paddockShapes.isNotEmpty()
         val facilitiesInteractive = MapLayer.Facilities in activeLayers && facilities.isNotEmpty()
+
+        // Tooltips must be CHILDREN of the interaction overlay, not siblings
+        // above it: Compose routes pointer events to the topmost sibling only,
+        // so a tooltip hit-target sitting over a facility disc would swallow
+        // clicks (dead zone at the marker center). As a descendant, the tooltip
+        // gets hover events while the overlay (an ancestor in the dispatch
+        // chain) still sees every press for selection/dragging.
+        val tooltips: @Composable () -> Unit = {
+            if (MapLayer.Facilities in activeLayers) {
+                facilities.forEach { marker ->
+                    MarkerTooltip(position = marker.position, text = marker.label, widthPx = widthPx, heightPx = heightPx)
+                }
+            }
+            if (MapLayer.Dinosaurs in activeLayers) {
+                dinosaurs.forEach { marker ->
+                    val text = buildString {
+                        append(marker.label ?: marker.species.displayName)
+                        if (marker.confidence != "high") append(" (confidence: ${marker.confidence})")
+                    }
+                    MarkerTooltip(position = marker.position, text = text, widthPx = widthPx, heightPx = heightPx)
+                }
+            }
+            if (MapLayer.Vehicles in activeLayers) {
+                vehicles.forEach { marker ->
+                    MarkerTooltip(
+                        position = marker.position,
+                        text = "Vehicle ${marker.id}",
+                        widthPx = widthPx,
+                        heightPx = heightPx,
+                    )
+                }
+            }
+            if (MapLayer.Staff in activeLayers) {
+                staff.forEach { marker ->
+                    MarkerTooltip(position = marker.position, text = marker.id, widthPx = widthPx, heightPx = heightPx)
+                }
+            }
+        }
+
         if (paddocksInteractive || facilitiesInteractive) {
             MapInteractionOverlay(
                 paddockShapes = if (paddocksInteractive) paddockShapes else emptyList(),
@@ -170,37 +288,11 @@ fun IslandMap(
                 onVertexMoved = onVertexMoved,
                 onFacilitySelected = onFacilitySelected,
                 onFacilityMoved = onFacilityMoved,
-            )
-        }
-
-        if (MapLayer.Facilities in activeLayers) {
-            facilities.forEach { marker ->
-                MarkerTooltip(position = marker.position, text = marker.label, widthPx = widthPx, heightPx = heightPx)
+            ) {
+                tooltips()
             }
-        }
-        if (MapLayer.Dinosaurs in activeLayers) {
-            dinosaurs.forEach { marker ->
-                val text = buildString {
-                    append(marker.label ?: marker.species.displayName)
-                    if (marker.confidence != "high") append(" (confidence: ${marker.confidence})")
-                }
-                MarkerTooltip(position = marker.position, text = text, widthPx = widthPx, heightPx = heightPx)
-            }
-        }
-        if (MapLayer.Vehicles in activeLayers) {
-            vehicles.forEach { marker ->
-                MarkerTooltip(
-                    position = marker.position,
-                    text = "Vehicle ${marker.id}",
-                    widthPx = widthPx,
-                    heightPx = heightPx,
-                )
-            }
-        }
-        if (MapLayer.Staff in activeLayers) {
-            staff.forEach { marker ->
-                MarkerTooltip(position = marker.position, text = marker.id, widthPx = widthPx, heightPx = heightPx)
-            }
+        } else {
+            tooltips()
         }
     }
 }
@@ -228,8 +320,18 @@ private fun MapInteractionOverlay(
     onVertexMoved: (paddockId: String, vertexIndex: Int, newPos: FractionalPoint) -> Unit,
     onFacilitySelected: (String?) -> Unit,
     onFacilityMoved: (facilityId: String, newPos: FractionalPoint) -> Unit,
+    // Rendered INSIDE the overlay's box (e.g. hover tooltips) so pointer
+    // events still reach the overlay's gestures — see the caller's comment.
+    content: @Composable () -> Unit = {},
 ) {
-    fun toFraction(offset: Offset) = FractionalPoint(offset.x / widthPx, offset.y / heightPx)
+    // Pixel size must ALSO be read live (not captured): the preview's zoom
+    // buttons resize the map, and the pointer-input coroutine (keyed on Unit)
+    // would otherwise keep converting positions with the stale size, shifting
+    // every hit-test after a zoom.
+    val widthPxState = rememberUpdatedState(widthPx)
+    val heightPxState = rememberUpdatedState(heightPx)
+    fun toFraction(offset: Offset) =
+        FractionalPoint(offset.x / widthPxState.value, offset.y / heightPxState.value)
 
     // Read live shapes/selection/callbacks from gesture & key lambdas WITHOUT
     // keying pointerInput on them — otherwise every vertex move (which changes
@@ -250,17 +352,20 @@ private fun MapInteractionOverlay(
     val facilityHitRadius = 0.028f
 
     val focusRequester = remember { FocusRequester() }
-    // A selected vertex or facility needs focus so arrow-key events arrive.
-    LaunchedEffect(selectedVertexIndex, selectedFacilityId, editMode) {
-        if (editMode && (selectedVertexIndex != null || selectedFacilityId != null)) {
+    // Any selection (paddock, vertex, or facility) needs focus in edit mode so
+    // arrow-key nudge events arrive.
+    LaunchedEffect(selectedPaddockId, selectedVertexIndex, selectedFacilityId, editMode) {
+        if (editMode && (selectedPaddockId != null || selectedVertexIndex != null || selectedFacilityId != null)) {
             focusRequester.requestFocus()
         }
     }
 
     // Arrow-key nudge step: 1 canvas pixel, so movement is slow/precise (key
-    // auto-repeat while held moves it continuously).
+    // auto-repeat while held moves it continuously). Holding shift moves 10x
+    // for coarse repositioning.
     val stepX = 1f / widthPx
     val stepY = 1f / heightPx
+    val shiftMultiplier = 10f
 
     Box(
         modifier = Modifier
@@ -270,6 +375,9 @@ private fun MapInteractionOverlay(
             .onKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
                 if (!editModeState.value) return@onKeyEvent false   // no nudging when locked
+                val scale = if (event.isShiftPressed) shiftMultiplier else 1f
+                val stepX = stepX * scale
+                val stepY = stepY * scale
                 val (dx, dy) = when (event.key) {
                     Key.DirectionLeft -> -stepX to 0f
                     Key.DirectionRight -> stepX to 0f
@@ -290,10 +398,28 @@ private fun MapInteractionOverlay(
                     )
                     return@onKeyEvent true
                 }
-                // Otherwise nudge the selected paddock vertex.
+                // Otherwise nudge the selected paddock: a selected node moves
+                // just that vertex; with no node selected, the WHOLE paddock
+                // moves rigidly (every vertex by the same delta).
                 val id = selectedState.value ?: return@onKeyEvent false
-                val vi = selectedVertexState.value ?: return@onKeyEvent false
                 val shape = shapesState.value.firstOrNull { it.id == id } ?: return@onKeyEvent false
+                val vi = selectedVertexState.value
+                if (vi == null) {
+                    // Clamp the delta (not each vertex) so the outline can't
+                    // be squashed against the canvas edge — it stops rigid.
+                    val loX = -shape.vertices.minOf { it.x }
+                    val hiX = 1f - shape.vertices.maxOf { it.x }
+                    val loY = -shape.vertices.minOf { it.y }
+                    val hiY = 1f - shape.vertices.maxOf { it.y }
+                    val ddx = if (loX <= hiX) dx.coerceIn(loX, hiX) else 0f
+                    val ddy = if (loY <= hiY) dy.coerceIn(loY, hiY) else 0f
+                    if (ddx != 0f || ddy != 0f) {
+                        shape.vertices.forEachIndexed { i, v ->
+                            onMovedState.value(id, i, FractionalPoint(v.x + ddx, v.y + ddy))
+                        }
+                    }
+                    return@onKeyEvent true
+                }
                 val v = shape.vertices.getOrNull(vi) ?: return@onKeyEvent false
                 onMovedState.value(
                     id, vi,
@@ -313,14 +439,21 @@ private fun MapInteractionOverlay(
                     // Resolve what's under the pointer at press time.
                     val facility = facilitiesState.value.nearestWithin(startFrac, facilityHitRadius)
                     val selShape = shapesState.value.firstOrNull { it.id == selectedState.value }
-                    val vertexHit = if (editModeState.value && selShape != null) {
-                        selShape.nearestVertexWithin(startFrac, 18f / widthPx)
+                    val vertexHit = if (editModeState.value && selShape != null && !selShape.isBuilding) {
+                        selShape.nearestVertexWithin(startFrac, 18f / widthPxState.value)
+                    } else {
+                        null
+                    }
+                    // A building has no fence nodes — it's grabbed by its icon.
+                    val buildingHit = if (facility == null) {
+                        shapesState.value.buildingIconWithin(startFrac, facilityHitRadius)
                     } else {
                         null
                     }
 
-                    // In edit mode a grabbed facility or vertex can be dragged.
-                    val draggable = editModeState.value && (facility != null || vertexHit != null)
+                    // In edit mode a grabbed facility, vertex, or building icon can be dragged.
+                    val draggable = editModeState.value &&
+                        (facility != null || vertexHit != null || buildingHit != null)
                     if (draggable) {
                         val slop = awaitTouchSlopOrCancellation(down.id) { change, _ -> change.consume() }
                         if (slop != null) {
@@ -331,16 +464,25 @@ private fun MapInteractionOverlay(
                                 onVertexSelectedState.value(null)
                             } else if (vertexHit != null) {
                                 onVertexSelectedState.value(vertexHit)
+                            } else if (buildingHit != null) {
+                                onSelectedState.value(buildingHit.id)
+                                onVertexSelectedState.value(null)
+                                onFacilitySelectedState.value(null)
                             }
                             fun apply(pos: Offset) {
                                 val f = toFraction(pos)
-                                if (facility != null) {
-                                    onFacilityMovedState.value(
+                                when {
+                                    facility != null -> onFacilityMovedState.value(
                                         facility.id,
                                         FractionalPoint(f.x.coerceIn(0f, 1f), f.y.coerceIn(0f, 1f)),
                                     )
-                                } else if (vertexHit != null && selShape != null) {
-                                    onMovedState.value(selShape.id, vertexHit, f)
+                                    vertexHit != null && selShape != null ->
+                                        onMovedState.value(selShape.id, vertexHit, f)
+                                    // Dragging a building moves its anchor point.
+                                    buildingHit != null -> onMovedState.value(
+                                        buildingHit.id, 0,
+                                        FractionalPoint(f.x.coerceIn(0f, 1f), f.y.coerceIn(0f, 1f)),
+                                    )
                                 }
                             }
                             apply(slop.position)
@@ -366,10 +508,16 @@ private fun MapInteractionOverlay(
                             onSelectedState.value(null)
                             onVertexSelectedState.value(null)
                         }
-                        // Otherwise (re)select whichever paddock contains the point.
+                        // A building's icon is its whole hit-target.
+                        buildingHit != null -> {
+                            onSelectedState.value(buildingHit.id)
+                            onVertexSelectedState.value(null)
+                            onFacilitySelectedState.value(null)
+                        }
+                        // Otherwise (re)select whichever fenced paddock contains the point.
                         else -> {
                             val hit = shapesState.value.lastOrNull {
-                                pointInPolygon(startFrac, it.toFractionalPoints())
+                                !it.isBuilding && pointInPolygon(startFrac, it.toFractionalPoints())
                             }
                             onSelectedState.value(hit?.id)
                             onVertexSelectedState.value(null)
@@ -378,7 +526,38 @@ private fun MapInteractionOverlay(
                     }
                 }
             },
-    )
+    ) {
+        content()
+    }
+}
+
+/** Anchor point of a building paddock (its single stored vertex / centroid). */
+private fun PaddockShape.anchor(): FractionalPoint? {
+    val pts = toFractionalPoints()
+    if (pts.isEmpty()) return null
+    return FractionalPoint(pts.map { it.x }.average().toFloat(), pts.map { it.y }.average().toFloat())
+}
+
+/**
+ * The building paddock whose icon is within [radiusFrac] of [frac], or null.
+ * Buildings have no traced outline, so they're hit by their icon rather than
+ * by [pointInPolygon] (which a single-point shape could never satisfy).
+ */
+private fun List<PaddockShape>.buildingIconWithin(frac: FractionalPoint, radiusFrac: Float): PaddockShape? {
+    var best: PaddockShape? = null
+    var bestSq = radiusFrac * radiusFrac
+    for (shape in this) {
+        if (!shape.isBuilding) continue
+        val a = shape.anchor() ?: continue
+        val dx = a.x - frac.x
+        val dy = a.y - frac.y
+        val d = dx * dx + dy * dy
+        if (d <= bestSq) {
+            bestSq = d
+            best = shape
+        }
+    }
+    return best
 }
 
 /** The facility whose position is within [radiusFrac] of [frac] (nearest if several), or null. */
@@ -444,24 +623,35 @@ private inline fun <T> List<T>.indexOfMinByOrNull(selector: (T) -> Float): Int? 
     return bestIdx
 }
 
-private fun DrawScope.drawPaddockShape(
+/** Selection-highlight color for a paddock's outline/label/handles. */
+private fun paddockLineColor(selected: Boolean, editMode: Boolean): Color = when {
+    selected && editMode -> SELECT_EDITABLE   // editable
+    selected -> SELECT_LOCKED                 // locked (selected, edit off)
+    else -> Color(0xFFE2E0BF)                 // default cream
+}
+
+/**
+ * Draws only a paddock's fence outline (and its selection tint fill). Split out
+ * from the icon/label marker so every fence can be drawn in a first pass and
+ * the species icons layered on top in a second pass — otherwise a neighboring
+ * paddock's fence could paint over an earlier paddock's icons.
+ */
+private fun DrawScope.drawPaddockFence(
     shape: PaddockShape,
     pt: (FractionalPoint) -> Offset,
     w: Float,
-    textMeasurer: TextMeasurer,
-    icons: List<ImageBitmap>,
     selected: Boolean,
     editMode: Boolean,
-    selectedVertexIndex: Int?,
 ) {
-    if (shape.vertices.isEmpty()) return
+    // A Building has no fence to trace — it's just its icon.
+    if (shape.vertices.isEmpty() || shape.isBuilding) return
     val points = shape.toFractionalPoints()
-    val lineColor = when {
-        selected && editMode -> SELECT_EDITABLE   // editable
-        selected -> SELECT_LOCKED                 // locked (selected, edit off)
-        else -> Color(0xFFE2E0BF)                 // default cream
-    }
-    val lineWidth = if (selected) w * 0.006f else w * 0.004f
+    val lineColor = paddockLineColor(selected, editMode)
+    // Fence stroke, 15% thinner than the original 0.006/0.004 of map width.
+    val lineWidth = if (selected) w * 0.0051f else w * 0.0034f
+    // Fence outline is dark red by default; a selected paddock keeps the
+    // selection highlight (green/yellow) so it still stands out.
+    val fenceColor = if (selected) lineColor else Color(0xFF7A1616)
 
     val path = Path().apply {
         points.forEachIndexed { index, point ->
@@ -473,45 +663,53 @@ private fun DrawScope.drawPaddockShape(
     if (selected) {
         drawPath(path, color = lineColor.copy(alpha = 0.12f))
     }
-    drawPath(path, color = lineColor, style = Stroke(width = lineWidth, join = StrokeJoin.Round, cap = StrokeCap.Round))
+    drawPath(
+        path,
+        color = fenceColor,
+        style = Stroke(width = lineWidth, join = StrokeJoin.Round, cap = StrokeCap.Round),
+    )
+}
 
-    // One species icon-disc per species, laid out side-by-side centered on the
-    // centroid, with the paddock name below.
+/** Fence-status color: an alert red that stays legible on the dark backing. */
+private val PADDOCK_STATUS_COLOR = Color(0xFFEB5757)
+
+/**
+ * Draws a paddock's center content — either its species icon(s) or its name +
+ * fence status, per [PaddockShape.displayMode] — plus, in edit mode, its vertex
+ * handles. Everything here sits ON TOP of every paddock's fence; run after
+ * [drawPaddockFence] for all paddocks.
+ */
+private fun DrawScope.drawPaddockMarker(
+    shape: PaddockShape,
+    pt: (FractionalPoint) -> Offset,
+    w: Float,
+    textMeasurer: TextMeasurer,
+    icons: List<ImageBitmap>,
+    selected: Boolean,
+    editMode: Boolean,
+    selectedVertexIndex: Int?,
+    zoom: Float = 1f,
+) {
+    if (shape.vertices.isEmpty()) return
+    // Marker size dampening: the map canvas — and thus `w` — grows 1:1 with zoom,
+    // so a plain `w * fraction` marker would balloon. Dividing by sqrt(zoom)
+    // makes it grow sub-linearly: 2x zoom -> ~1.41x, 4x zoom -> 2x. Readable
+    // zoomed out, unobtrusive zoomed in.
+    val markerScale = 1f / kotlin.math.sqrt(zoom.coerceAtLeast(0.01f))
+    val points = shape.toFractionalPoints()
+    val lineColor = paddockLineColor(selected, editMode)
     val centroid = polygonCentroid(points.map(pt))
-    val iconRadius = w * 0.020f
-    val gap = w * 0.006f
-    if (icons.isNotEmpty()) {
-        val totalWidth = icons.size * (2 * iconRadius) + (icons.size - 1) * gap
-        var discX = centroid.x - totalWidth / 2f + iconRadius
-        icons.forEach { icon ->
-            drawSpeciesIcon(Offset(discX, centroid.y), iconRadius, shape.carnivore, icon, w)
-            discX += 2 * iconRadius + gap
-        }
+
+    when (shape.displayMode) {
+        PaddockDisplayMode.SpeciesIcon ->
+            drawPaddockIcons(shape, centroid, w, markerScale, lineColor, selected, icons)
+        PaddockDisplayMode.Name ->
+            drawPaddockNameBlock(shape, centroid, w, markerScale, lineColor, selected, textMeasurer)
     }
 
-    val layout = textMeasurer.measure(
-        text = shape.label,
-        style = TextStyle(
-            color = lineColor,
-            fontSize = (w * 0.018f).toSp(),
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-        ),
-    )
-    val labelTop = centroid.y + iconRadius + w * 0.006f
-    val textTopLeft = Offset(centroid.x - layout.size.width / 2f, labelTop)
-    // Dark backing so the label stays legible over the terrain.
-    drawRect(
-        color = Color.Black.copy(alpha = 0.45f),
-        topLeft = Offset(textTopLeft.x - w * 0.004f, textTopLeft.y - w * 0.002f),
-        size = Size(layout.size.width + w * 0.008f, layout.size.height + w * 0.004f),
-    )
-    drawText(layout, topLeft = textTopLeft)
-
-    // Vertex handles — only shown in edit mode (they're just drag targets).
-    // Larger + filled when this paddock is selected; the currently-selected
-    // vertex is highlighted (yellow, enlarged).
-    if (editMode) {
+    // Vertex handles — only shown in edit mode (they're just drag targets), and
+    // never for a building: it has no fence nodes, you drag its icon instead.
+    if (editMode && !shape.isBuilding) {
         val handleRadius = if (selected) w * 0.008f else w * 0.005f
         points.forEachIndexed { index, point ->
             val o = pt(point)
@@ -520,6 +718,104 @@ private fun DrawScope.drawPaddockShape(
             drawCircle(Color.Black, radius = r * 1.3f, center = o)
             drawCircle(if (isSelectedVertex) Color(0xFFD5CD58) else lineColor, radius = r, center = o)
         }
+    }
+}
+
+/** [PaddockDisplayMode.SpeciesIcon]: one species icon-disc per species, centered on [centroid]. */
+private fun DrawScope.drawPaddockIcons(
+    shape: PaddockShape,
+    centroid: Offset,
+    w: Float,
+    markerScale: Float,
+    lineColor: Color,
+    selected: Boolean,
+    icons: List<ImageBitmap>,
+) {
+    if (icons.isEmpty()) return
+    val iconRadius = w * 0.020f * markerScale
+    val gap = w * 0.006f * markerScale
+    val totalWidth = icons.size * (2 * iconRadius) + (icons.size - 1) * gap
+    // A building has no outline to recolor, so the icon itself carries the
+    // selection highlight — a ring around the icon cluster.
+    if (selected && shape.isBuilding) {
+        drawRoundRect(
+            color = lineColor,
+            topLeft = Offset(centroid.x - totalWidth / 2f - gap, centroid.y - iconRadius - gap),
+            size = Size(totalWidth + 2 * gap, 2 * iconRadius + 2 * gap),
+            cornerRadius = CornerRadius(iconRadius + gap),
+            style = Stroke(width = w * 0.005f * markerScale),
+        )
+    }
+    var discX = centroid.x - totalWidth / 2f + iconRadius
+    icons.forEach { icon ->
+        drawSpeciesIcon(Offset(discX, centroid.y), iconRadius, shape.carnivore, icon, w)
+        discX += 2 * iconRadius + gap
+    }
+}
+
+/** [PaddockDisplayMode.Name]: the paddock name, with its optional fence status beneath, centered on [centroid]. */
+private fun DrawScope.drawPaddockNameBlock(
+    shape: PaddockShape,
+    centroid: Offset,
+    w: Float,
+    markerScale: Float,
+    lineColor: Color,
+    selected: Boolean,
+    textMeasurer: TextMeasurer,
+) {
+    val nameLayout = textMeasurer.measure(
+        text = shape.label,
+        style = TextStyle(
+            color = lineColor,
+            fontSize = (w * 0.018f * markerScale).toSp(),
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        ),
+    )
+    val statusLayout = shape.fenceState?.takeIf { it.isNotBlank() }?.let { state ->
+        textMeasurer.measure(
+            text = state.uppercase(),
+            style = TextStyle(
+                color = PADDOCK_STATUS_COLOR,
+                fontSize = (w * 0.014f * markerScale).toSp(),
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            ),
+        )
+    }
+
+    // Stack name over status, vertically centered on the centroid.
+    val lineGap = if (statusLayout != null) w * 0.003f * markerScale else 0f
+    val blockW = maxOf(nameLayout.size.width, statusLayout?.size?.width ?: 0).toFloat()
+    val blockH = nameLayout.size.height + lineGap + (statusLayout?.size?.height ?: 0)
+    val blockLeft = centroid.x - blockW / 2f
+    val blockTop = centroid.y - blockH / 2f
+    val padX = w * 0.004f * markerScale
+    val padY = w * 0.002f * markerScale
+
+    // Dark backing so the text stays legible over the terrain.
+    drawRect(
+        color = Color.Black.copy(alpha = 0.45f),
+        topLeft = Offset(blockLeft - padX, blockTop - padY),
+        size = Size(blockW + 2 * padX, blockH + 2 * padY),
+    )
+    // A building has no fence outline to recolor, so when selected the label
+    // block itself carries the selection highlight — a ring around it.
+    if (selected && shape.isBuilding) {
+        drawRoundRect(
+            color = lineColor,
+            topLeft = Offset(blockLeft - 2 * padX, blockTop - 2 * padY),
+            size = Size(blockW + 4 * padX, blockH + 4 * padY),
+            cornerRadius = CornerRadius(w * 0.006f * markerScale),
+            style = Stroke(width = w * 0.005f * markerScale),
+        )
+    }
+    drawText(nameLayout, topLeft = Offset(centroid.x - nameLayout.size.width / 2f, blockTop))
+    statusLayout?.let {
+        drawText(
+            it,
+            topLeft = Offset(centroid.x - it.size.width / 2f, blockTop + nameLayout.size.height + lineGap),
+        )
     }
 }
 
@@ -591,22 +887,29 @@ private fun DrawScope.drawFacility(
     selected: Boolean = false,
     editMode: Boolean = false,
 ) {
-    // Blue disc + black border, matching the paddock species-icon style. Each
-    // facility kind gets its own original silhouette.
+    // Blue disc + black border, matching the paddock species-icon style. Most
+    // facility kinds get their own original silhouette; minor utility
+    // structures (e.g. the maintenance shed) are just a smaller plain disc.
     val facilityColor = Color(0xFF397FA4)
-    val radius = w * 0.020f
+    val icon = when (marker.kind) {
+        FacilityKind.Helipad -> helipadIcon
+        FacilityKind.VisitorCenter -> visitorCenterIcon
+        FacilityKind.Dock -> dockIcon
+        FacilityKind.MaintenanceShed -> null
+    }
+    val radius = if (icon == null) w * 0.011f else w * 0.020f
     // Highlight ring when selected: green = editable (edit mode on),
     // yellow = locked (selected but not editable).
     if (selected) {
         val ringColor = if (editMode) SELECT_EDITABLE else SELECT_LOCKED
         drawCircle(ringColor, radius = radius * 1.35f, center = center, style = Stroke(width = w * 0.005f))
     }
-    val icon = when (marker.kind) {
-        FacilityKind.Helipad -> helipadIcon
-        FacilityKind.VisitorCenter -> visitorCenterIcon
-        FacilityKind.Dock -> dockIcon
+    if (icon == null) {
+        drawCircle(facilityColor, radius = radius, center = center)
+        drawCircle(Color.Black, radius = radius, center = center, style = Stroke(width = w * 0.003f))
+    } else {
+        drawIconDisc(center, radius, facilityColor, icon, w, iconFillFactor = 1.35f)
     }
-    drawIconDisc(center, radius, facilityColor, icon, w, iconFillFactor = 1.35f)
 }
 
 /**
@@ -655,6 +958,14 @@ private fun speciesIcons(
     bronto: ImageBitmap,
     raptor: ImageBitmap,
     tyrannosaurus: ImageBitmap,
+    triceratops: ImageBitmap,
+    gallimimus: ImageBitmap,
+    segisaurus: ImageBitmap,
+    metriacanthosaurus: ImageBitmap,
+    parasaurolophus: ImageBitmap,
+    proceratosaurus: ImageBitmap,
+    herrerasaurus: ImageBitmap,
+    dilophosaurus: ImageBitmap,
 ): List<ImageBitmap> {
     if (shape.species.isEmpty()) return listOf(skull)
     return shape.species.map { name ->
@@ -663,7 +974,14 @@ private fun speciesIcons(
             "brachiosaur" in s || "bronto" in s || "sauropod" in s -> bronto
             "raptor" in s -> raptor
             "tyrannosaur" in s || "rex" in s -> tyrannosaurus
-            // "parasaurolophus" -> parasaurolophus  // TODO: add icon when the art exists
+            "triceratops" in s || "trike" in s -> triceratops
+            "gallimimus" in s -> gallimimus
+            "segisaurus" in s -> segisaurus
+            "metriacanthosaur" in s -> metriacanthosaurus
+            "parasaurolophus" in s -> parasaurolophus
+            "proceratosaur" in s -> proceratosaurus
+            "herrerasaur" in s -> herrerasaurus
+            "dilophosaur" in s -> dilophosaurus
             else -> skull
         }
     }

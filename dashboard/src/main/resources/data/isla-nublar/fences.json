@@ -1,0 +1,448 @@
+{
+    "fences": [
+        {
+            "id": "outer_north",
+            "label": "Outer north perimeter",
+            "points": [
+                {
+                    "x": 0.40151697,
+                    "y": 0.24887675
+                },
+                {
+                    "x": 0.44090408,
+                    "y": 0.21302116
+                },
+                {
+                    "x": 0.47923446,
+                    "y": 0.20195186
+                },
+                {
+                    "x": 0.5240308,
+                    "y": 0.19596347
+                },
+                {
+                    "x": 0.56153506,
+                    "y": 0.18457702
+                },
+                {
+                    "x": 0.59528947,
+                    "y": 0.17860433
+                },
+                {
+                    "x": 0.61701435,
+                    "y": 0.18047172
+                },
+                {
+                    "x": 0.63556594,
+                    "y": 0.1976094
+                },
+                {
+                    "x": 0.6449605,
+                    "y": 0.19288167
+                },
+                {
+                    "x": 0.6512463,
+                    "y": 0.20942855
+                },
+                {
+                    "x": 0.6552479,
+                    "y": 0.24207401
+                },
+                {
+                    "x": 0.68076074,
+                    "y": 0.24324295
+                }
+            ],
+            "status": "Visible",
+            "confidence": "medium"
+        },
+        {
+            "id": "outer_east",
+            "label": "Outer east perimeter",
+            "points": [
+                {
+                    "x": 0.68076074,
+                    "y": 0.24324295
+                },
+                {
+                    "x": 0.69674444,
+                    "y": 0.29803762
+                },
+                {
+                    "x": 0.7198728,
+                    "y": 0.33994153
+                },
+                {
+                    "x": 0.75326586,
+                    "y": 0.36210138
+                },
+                {
+                    "x": 0.7942156,
+                    "y": 0.3648191
+                },
+                {
+                    "x": 0.8318343,
+                    "y": 0.36497313
+                },
+                {
+                    "x": 0.8336426,
+                    "y": 0.43402326
+                },
+                {
+                    "x": 0.80299604,
+                    "y": 0.45630944
+                },
+                {
+                    "x": 0.76912355,
+                    "y": 0.475799
+                },
+                {
+                    "x": 0.74045074,
+                    "y": 0.4966083
+                },
+                {
+                    "x": 0.71360046,
+                    "y": 0.5331447
+                },
+                {
+                    "x": 0.6968375,
+                    "y": 0.5764024
+                }
+            ],
+            "status": "Visible",
+            "confidence": "medium"
+        },
+        {
+            "id": "outer_south",
+            "label": "Outer south perimeter",
+            "points": [
+                {
+                    "x": 0.6968375,
+                    "y": 0.5764024
+                },
+                {
+                    "x": 0.6689986,
+                    "y": 0.64172053
+                },
+                {
+                    "x": 0.6105436,
+                    "y": 0.7037942
+                },
+                {
+                    "x": 0.5707683,
+                    "y": 0.6807058
+                },
+                {
+                    "x": 0.5323891,
+                    "y": 0.65957594
+                },
+                {
+                    "x": 0.52171725,
+                    "y": 0.6365959
+                }
+            ],
+            "status": "Visible",
+            "confidence": "medium"
+        },
+        {
+            "id": "outer_west",
+            "label": "Outer west / southwest perimeter",
+            "points": [
+                {
+                    "x": 0.52171725,
+                    "y": 0.6365959
+                },
+                {
+                    "x": 0.5348941,
+                    "y": 0.48863286
+                },
+                {
+                    "x": 0.47985327,
+                    "y": 0.45787656
+                },
+                {
+                    "x": 0.42764115,
+                    "y": 0.4392397
+                },
+                {
+                    "x": 0.41108364,
+                    "y": 0.38952416
+                },
+                {
+                    "x": 0.38207525,
+                    "y": 0.3402903
+                },
+                {
+                    "x": 0.40151697,
+                    "y": 0.24887675
+                }
+            ],
+            "status": "VisiblePartial",
+            "confidence": "medium"
+        },
+        {
+            "id": "upper_west_span",
+            "label": "Upper west interior span",
+            "points": [
+                {
+                    "x": 0.40151697,
+                    "y": 0.24887675
+                },
+                {
+                    "x": 0.50134265,
+                    "y": 0.26099566
+                },
+                {
+                    "x": 0.6289529,
+                    "y": 0.31254014
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        },
+        {
+            "id": "north_divider",
+            "label": "North divider",
+            "points": [
+                {
+                    "x": 0.54885465,
+                    "y": 0.22185755
+                },
+                {
+                    "x": 0.5776303,
+                    "y": 0.3176062
+                },
+                {
+                    "x": 0.6289529,
+                    "y": 0.31254014
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        },
+        {
+            "id": "north_inner_run",
+            "label": "North inner run",
+            "points": [
+                {
+                    "x": 0.6289529,
+                    "y": 0.31254014
+                },
+                {
+                    "x": 0.6455428,
+                    "y": 0.29064035
+                },
+                {
+                    "x": 0.64134055,
+                    "y": 0.25849184
+                },
+                {
+                    "x": 0.6490958,
+                    "y": 0.24224561
+                },
+                {
+                    "x": 0.6827896,
+                    "y": 0.26631057
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        },
+        {
+            "id": "west_center_vertical",
+            "label": "West-center vertical divider",
+            "points": [
+                {
+                    "x": 0.5146094,
+                    "y": 0.4257559
+                },
+                {
+                    "x": 0.51222557,
+                    "y": 0.34547517
+                },
+                {
+                    "x": 0.58284295,
+                    "y": 0.3470633
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        },
+        {
+            "id": "center_north_diagonal",
+            "label": "Center-to-north diagonal",
+            "points": [
+                {
+                    "x": 0.51222557,
+                    "y": 0.34547517
+                },
+                {
+                    "x": 0.58284295,
+                    "y": 0.3470633
+                },
+                {
+                    "x": 0.6289529,
+                    "y": 0.31254014
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        },
+        {
+            "id": "south_diagonal",
+            "label": "South diagonal",
+            "points": [
+                {
+                    "x": 0.5146094,
+                    "y": 0.4257559
+                },
+                {
+                    "x": 0.67506236,
+                    "y": 0.44188848
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        },
+        {
+            "id": "trex_outline_west_south",
+            "label": "T. rex outline west/south edge",
+            "points": [
+                {
+                    "x": 0.58284295,
+                    "y": 0.3470633
+                },
+                {
+                    "x": 0.5575862,
+                    "y": 0.36382252
+                },
+                {
+                    "x": 0.55909014,
+                    "y": 0.4285039
+                },
+                {
+                    "x": 0.67506236,
+                    "y": 0.44188848
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        },
+        {
+            "id": "trex_outline_north_east",
+            "label": "T. rex outline north/east edge",
+            "points": [
+                {
+                    "x": 0.58284295,
+                    "y": 0.3470633
+                },
+                {
+                    "x": 0.6289529,
+                    "y": 0.31254014
+                },
+                {
+                    "x": 0.6455428,
+                    "y": 0.29064035
+                },
+                {
+                    "x": 0.64134055,
+                    "y": 0.25849184
+                },
+                {
+                    "x": 0.6490958,
+                    "y": 0.24224561
+                },
+                {
+                    "x": 0.6827896,
+                    "y": 0.26631057
+                },
+                {
+                    "x": 0.7214936,
+                    "y": 0.36965463
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        },
+        {
+            "id": "east_mid_horizontal",
+            "label": "East mid horizontal divider",
+            "points": [
+                {
+                    "x": 0.7214936,
+                    "y": 0.36965463
+                },
+                {
+                    "x": 0.8318343,
+                    "y": 0.36497313
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        },
+        {
+            "id": "east_mid_divider",
+            "label": "East mid divider",
+            "points": [
+                {
+                    "x": 0.67506236,
+                    "y": 0.44188848
+                },
+                {
+                    "x": 0.7214936,
+                    "y": 0.36965463
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        },
+        {
+            "id": "east_lower_left",
+            "label": "East-lower left divider",
+            "points": [
+                {
+                    "x": 0.67506236,
+                    "y": 0.44188848
+                },
+                {
+                    "x": 0.66437775,
+                    "y": 0.49887496
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        },
+        {
+            "id": "east_lower_bottom",
+            "label": "East-lower bottom divider",
+            "points": [
+                {
+                    "x": 0.66437775,
+                    "y": 0.49887496
+                },
+                {
+                    "x": 0.75932044,
+                    "y": 0.52037543
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        },
+        {
+            "id": "helipad_spur",
+            "label": "Helipad south spur",
+            "points": [
+                {
+                    "x": 0.5348941,
+                    "y": 0.48863286
+                },
+                {
+                    "x": 0.52171725,
+                    "y": 0.6365959
+                }
+            ],
+            "status": "Visible",
+            "confidence": "high"
+        }
+    ]
+}

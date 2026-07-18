@@ -28,15 +28,12 @@ import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Path
@@ -55,6 +52,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import os.nublar.dashboard.ui.map.MapViewport
+import os.nublar.dashboard.data.LogEntry
+import os.nublar.dashboard.viewmodel.ControlRoomViewModel
 import os.nublar.designsystem.NublarColors
 import os.nublar.designsystem.NublarType
 
@@ -146,6 +145,7 @@ fun ControlRoomPlanView(
     onSwitchScreen: () -> Unit = {},
     splitFraction: Float = 0.535f,
     onSplitFractionChange: (Float) -> Unit = {},
+    viewModel: ControlRoomViewModel,
 ) {
     Box(
         modifier = Modifier
@@ -159,7 +159,7 @@ fun ControlRoomPlanView(
                 splitFraction = splitFraction,
                 onSplitFractionChange = onSplitFractionChange,
                 left = { m -> FloorPlanPanel(modifier = m) },
-                right = { m -> RightColumn(modifier = m, onClose = onClose) },
+                right = { m -> RightColumn(modifier = m, onClose = onClose, viewModel = viewModel) },
             )
             BottomBar(screenLabel = "Isla Nublar, Costa Rica", onScreenClick = onSwitchScreen)
         }
@@ -505,13 +505,17 @@ private fun LevelBadge() {
 }
 
 @Composable
-private fun RightColumn(modifier: Modifier = Modifier, onClose: () -> Unit) {
+private fun RightColumn(
+    modifier: Modifier = Modifier,
+    onClose: () -> Unit,
+    viewModel: ControlRoomViewModel,
+) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         TabRow(label = "VEHICLE", tabs = listOf("TOUR", "POWER", "TIME"))
         StatusVideoPanel(modifier = Modifier.weight(1f).fillMaxWidth())
         TransportControls(onClose = onClose)
         TabRow(label = "GLITCHES", tabs = listOf("MAPS", "SYSTEM", "EMERG."))
-        GlitchesLog(modifier = Modifier.weight(1f).fillMaxWidth())
+        GlitchesLog(entries = viewModel.glitchesLog, modifier = Modifier.weight(1f).fillMaxWidth())
     }
 }
 
@@ -605,14 +609,24 @@ private fun StatusVideoPanel(modifier: Modifier = Modifier) {
 
 @Composable
 private fun TransportControls(onClose: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    // Beveled outer panel around the whole cluster (matches the film screen):
+    // a RECESSED frame (dark top/left, light bottom/right) with the gray field
+    // showing as a thin border around the keys, which stay raised.
+    Column(
+        modifier = Modifier
+            .background(NublarColors.MonitorGray)
+            .bevelBorder(raised = false, width = 2.dp)
+            .padding(3.dp),
+    ) {
+        Row {
             ChunkyButton("HOLD", modifier = Modifier.weight(1f))
             ChunkyButton("QUIT", modifier = Modifier.weight(1f), onClick = onClose)
             ChunkyButton("NEW", modifier = Modifier.weight(1f))
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            ChunkyButton("NEXT", modifier = Modifier.weight(1f))
+        Row {
+            // NEXT spans the same width as HOLD above (1/3 of the row): weight 2
+            // vs. the four playback keys at weight 1 each -> 2/6 = 1/3.
+            ChunkyButton("NEXT", modifier = Modifier.weight(2f))
             ChunkyButton("◄◄", modifier = Modifier.weight(1f))
             ChunkyButton("►►", modifier = Modifier.weight(1f))
             ChunkyButton("►", modifier = Modifier.weight(1f), highlight = true)
@@ -628,36 +642,35 @@ internal fun ChunkyButton(
     highlight: Boolean = false,
     onClick: () -> Unit = {},
 ) {
+    val density = LocalDensity.current
     Box(
         modifier = modifier
             .height(32.dp)
-            .background(if (highlight) NublarColors.StatusGreen else NublarColors.MonitorGray)
+            .background(if (highlight) NublarColors.StatusGreen else Color(0xFFABB0A3))
             .bevelBorder(raised = true)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = NublarColors.DarkFrame, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Text(
+            label,
+            color = NublarColors.DarkFrame,
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.8.sp,
+            // Hard white shadow offset down-right (2pt right, 2pt down) so the
+            // label reads as raised off the chunky button.
+            style = TextStyle(
+                shadow = Shadow(
+                    color = Color.White.copy(alpha = 0.5f),
+                    offset = Offset(1 * density.density, 1 * density.density),
+                    blurRadius = 0f,
+                ),
+            ),
+        )
     }
 }
 
-internal data class LogEntry(val text: String, val status: String = "CLEAR")
-
 @Composable
-private fun GlitchesLog(modifier: Modifier = Modifier) {
-    val entries = listOf(
-        LogEntry("Ldg - Volume - JP"),
-        LogEntry("Boot Successful - CLEAR"),
-        LogEntry("Format Gabber - Chaires"),
-        LogEntry("Operator - Andres Ramirez dkhd"),
-        LogEntry("Vidnet - Camera VC net01"),
-        LogEntry("Communications = Active"),
-        LogEntry("Grid Status - Nominal"),
-        LogEntry("Perimeter Fences - Armed"),
-        LogEntry("Auxiliary Power - Standby"),
-        LogEntry("Tour Route B - Clear"),
-        LogEntry("Environmental Control - Nominal"),
-        LogEntry("Mini Array Capacity - 62%"),
-    )
+private fun GlitchesLog(entries: List<LogEntry>, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .background(Color.White)

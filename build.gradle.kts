@@ -4,11 +4,6 @@ plugins {
     alias(libs.plugins.compose.compiler) apply false
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        // jediterm is not published to Maven Central — see settings.gradle.kts.
-        maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
-    }
-}
+// Repositories are declared once in settings.gradle.kts
+// (dependencyResolutionManagement) — including the JetBrains
+// intellij-dependencies repo jediterm needs. Do not re-declare them here.

@@ -20,6 +20,13 @@
             "kind": "Dock",
             "x": 0.76607144,
             "y": 0.5946429
+        },
+        {
+            "id": "maintenance-shed",
+            "label": "Maintenance Shed",
+            "kind": "MaintenanceShed",
+            "x": 0.32714286,
+            "y": 0.38214287
         }
     ]
 }

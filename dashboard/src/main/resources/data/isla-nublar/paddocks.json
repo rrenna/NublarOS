@@ -9,27 +9,12 @@
             "carnivore": true,
             "vertices": [
                 {
-                    "x": 0.36,
-                    "y": 0.42
-                },
-                {
-                    "x": 0.46,
-                    "y": 0.4
-                },
-                {
-                    "x": 0.5,
-                    "y": 0.5
-                },
-                {
-                    "x": 0.45,
-                    "y": 0.58
-                },
-                {
-                    "x": 0.36,
-                    "y": 0.55
+                    "x": 0.36651787,
+                    "y": 0.3845238
                 }
             ],
-            "closed": true
+            "closed": true,
+            "enclosure": "Building"
         },
         {
             "id": "tyrannosaurus-paddock",
@@ -40,59 +25,95 @@
             "carnivore": true,
             "vertices": [
                 {
-                    "x": 0.52,
-                    "y": 0.3
+                    "x": 0.6160002,
+                    "y": 0.38914305
                 },
                 {
-                    "x": 0.66,
-                    "y": 0.3
+                    "x": 0.6034073,
+                    "y": 0.35758576
                 },
                 {
-                    "x": 0.7,
-                    "y": 0.42
+                    "x": 0.6172252,
+                    "y": 0.29300702
                 },
                 {
-                    "x": 0.62,
-                    "y": 0.5
+                    "x": 0.65252876,
+                    "y": 0.28488564
                 },
                 {
-                    "x": 0.52,
-                    "y": 0.46
+                    "x": 0.66437143,
+                    "y": 0.25285703
+                },
+                {
+                    "x": 0.76714283,
+                    "y": 0.26285714
+                },
+                {
+                    "x": 0.76914287,
+                    "y": 0.29828572
+                },
+                {
+                    "x": 0.79017144,
+                    "y": 0.32022858
+                },
+                {
+                    "x": 0.82765716,
+                    "y": 0.37417144
+                },
+                {
+                    "x": 0.68114287,
+                    "y": 0.36045706
+                },
+                {
+                    "x": 0.6790858,
+                    "y": 0.37417135
+                },
+                {
+                    "x": 0.6754288,
+                    "y": 0.3984
                 }
             ],
-            "closed": true
+            "closed": true,
+            "enclosure": "Fenced",
+            "fenceState": "UNARMED"
         },
         {
             "id": "brachiosaurus-paddock",
             "label": "Brachiosaurus Paddock",
             "species": [
-                "Brachiosaurus",
-                "Parasaurolophus"
+                "Parasaurolophus",
+                "Brachiosaurus"
             ],
             "carnivore": false,
             "vertices": [
                 {
-                    "x": 0.34,
-                    "y": 0.19
+                    "x": 0.49598214,
+                    "y": 0.29419643
                 },
                 {
-                    "x": 0.5,
-                    "y": 0.16
+                    "x": 0.53803617,
+                    "y": 0.26535723
                 },
                 {
-                    "x": 0.57,
-                    "y": 0.25
+                    "x": 0.5925006,
+                    "y": 0.23357153
+                },
+                {
+                    "x": 0.61714315,
+                    "y": 0.2932142
                 },
                 {
                     "x": 0.49,
                     "y": 0.33
                 },
                 {
-                    "x": 0.35,
-                    "y": 0.3
+                    "x": 0.44821456,
+                    "y": 0.3267858
                 }
             ],
-            "closed": true
+            "closed": true,
+            "enclosure": "Fenced",
+            "fenceState": "UNARMED"
         },
         {
             "id": "baryonyx-paddock",
@@ -103,8 +124,8 @@
             "carnivore": true,
             "vertices": [
                 {
-                    "x": 0.68714285,
-                    "y": 0.49535716
+                    "x": 0.67857134,
+                    "y": 0.5239287
                 },
                 {
                     "x": 0.72964287,
@@ -131,42 +152,51 @@
                     "y": 0.49892858
                 },
                 {
-                    "x": 0.7814286,
-                    "y": 0.5239286
+                    "x": 0.7717857,
+                    "y": 0.55107147
                 }
             ],
-            "closed": true
+            "closed": true,
+            "enclosure": "Fenced",
+            "fenceState": "UNARMED"
         },
         {
-            "id": "segisaurus-paddock",
-            "label": "Segisaurus Paddock",
+            "id": "segisaurus-proceratosaurus-paddock",
+            "label": "Segisaurus & Proceratosaurus Paddock",
             "species": [
-                "Segisaurus"
+                "Segisaurus",
+                "Proceratosaurus"
             ],
             "carnivore": true,
             "vertices": [
                 {
-                    "x": 0.3,
-                    "y": 0.63
+                    "x": 0.542857,
+                    "y": 0.44571227
                 },
                 {
-                    "x": 0.41,
-                    "y": 0.62
+                    "x": 0.6868926,
+                    "y": 0.4965348
                 },
                 {
-                    "x": 0.45,
-                    "y": 0.71
+                    "x": 0.6767677,
+                    "y": 0.5240888
                 },
                 {
-                    "x": 0.38,
-                    "y": 0.78
+                    "x": 0.77035713,
+                    "y": 0.5525
                 },
                 {
-                    "x": 0.29,
-                    "y": 0.73
+                    "x": 0.6285717,
+                    "y": 0.60285527
+                },
+                {
+                    "x": 0.5085712,
+                    "y": 0.60285527
                 }
             ],
-            "closed": true
+            "closed": true,
+            "enclosure": "Fenced",
+            "fenceState": "UNARMED"
         },
         {
             "id": "dilophosaurus-paddock",
@@ -177,27 +207,191 @@
             "carnivore": true,
             "vertices": [
                 {
-                    "x": 0.47,
-                    "y": 0.63
+                    "x": 0.5527519,
+                    "y": 0.3426586
                 },
                 {
-                    "x": 0.57,
-                    "y": 0.62
+                    "x": 0.6090693,
+                    "y": 0.32291096
                 },
                 {
-                    "x": 0.6,
-                    "y": 0.71
+                    "x": 0.60285246,
+                    "y": 0.35948068
                 },
                 {
-                    "x": 0.53,
-                    "y": 0.78
+                    "x": 0.6141891,
+                    "y": 0.38873652
                 },
                 {
-                    "x": 0.46,
-                    "y": 0.72
+                    "x": 0.67599195,
+                    "y": 0.40080455
+                },
+                {
+                    "x": 0.6811117,
+                    "y": 0.3616749
+                },
+                {
+                    "x": 0.7282867,
+                    "y": 0.36606327
+                },
+                {
+                    "x": 0.687243,
+                    "y": 0.49571505
+                },
+                {
+                    "x": 0.6647837,
+                    "y": 0.49074692
+                },
+                {
+                    "x": 0.54285496,
+                    "y": 0.44574058
                 }
             ],
-            "closed": true
+            "closed": true,
+            "enclosure": "Fenced",
+            "fenceState": "UNARMED"
+        },
+        {
+            "id": "metriacanthosaurus-paddock",
+            "label": "Metriacanthosaurus Paddock",
+            "species": [
+                "Metriacanthosaurus"
+            ],
+            "carnivore": true,
+            "vertices": [
+                {
+                    "x": 0.40290153,
+                    "y": 0.5315258
+                }
+            ],
+            "closed": true,
+            "enclosure": "Building"
+        },
+        {
+            "id": "gallimimus-paddock",
+            "label": "Gallimimus Paddock",
+            "species": [
+                "Gallimimus"
+            ],
+            "carnivore": false,
+            "vertices": [
+                {
+                    "x": 0.43591064,
+                    "y": 0.35953572
+                },
+                {
+                    "x": 0.4467813,
+                    "y": 0.32881957
+                },
+                {
+                    "x": 0.49193776,
+                    "y": 0.33010352
+                },
+                {
+                    "x": 0.6174507,
+                    "y": 0.293357
+                },
+                {
+                    "x": 0.6101165,
+                    "y": 0.32264268
+                },
+                {
+                    "x": 0.5534107,
+                    "y": 0.34278548
+                },
+                {
+                    "x": 0.5431078,
+                    "y": 0.44564372
+                },
+                {
+                    "x": 0.50996476,
+                    "y": 0.4233579
+                },
+                {
+                    "x": 0.4674503,
+                    "y": 0.42255774
+                },
+                {
+                    "x": 0.4305939,
+                    "y": 0.41125944
+                },
+                {
+                    "x": 0.41865182,
+                    "y": 0.38716105
+                }
+            ],
+            "closed": true,
+            "enclosure": "Fenced",
+            "fenceState": "UNARMED"
+        },
+        {
+            "id": "herrerasaurus-paddock",
+            "label": "Herrerasaurus Paddock",
+            "species": [
+                "Herrerasaurus"
+            ],
+            "carnivore": true,
+            "vertices": [
+                {
+                    "x": 0.2973727,
+                    "y": 0.4282725
+                }
+            ],
+            "closed": true,
+            "enclosure": "Building"
+        },
+        {
+            "id": "triceratops-paddock",
+            "label": "Triceratops Paddock",
+            "species": [
+                "Triceratops"
+            ],
+            "carnivore": false,
+            "vertices": [
+                {
+                    "x": 0.5932143,
+                    "y": 0.23428571
+                },
+                {
+                    "x": 0.64821434,
+                    "y": 0.21071427
+                },
+                {
+                    "x": 0.6660714,
+                    "y": 0.19321427
+                },
+                {
+                    "x": 0.68392855,
+                    "y": 0.17571428
+                },
+                {
+                    "x": 0.7132143,
+                    "y": 0.20357142
+                },
+                {
+                    "x": 0.74607146,
+                    "y": 0.20785715
+                },
+                {
+                    "x": 0.7682143,
+                    "y": 0.26142856
+                },
+                {
+                    "x": 0.66392857,
+                    "y": 0.25214285
+                },
+                {
+                    "x": 0.6532143,
+                    "y": 0.285
+                },
+                {
+                    "x": 0.6175,
+                    "y": 0.29285714
+                }
+            ],
+            "closed": true,
+            "enclosure": "Fenced",
+            "fenceState": "UNARMED"
         }
     ]
 }

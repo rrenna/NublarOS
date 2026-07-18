@@ -1,5 +1,6 @@
 package os.nublar.dashboard
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,28 +18,25 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Text
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import os.nublar.dashboard.ui.map.FacilityMarker
-import os.nublar.dashboard.ui.map.FractionalPoint
 import os.nublar.dashboard.ui.map.IslandMap
-import os.nublar.dashboard.ui.map.MapViewport
 import os.nublar.dashboard.ui.map.MapLayer
+import os.nublar.dashboard.ui.map.MapViewport
+import os.nublar.dashboard.ui.map.PaddockEnclosure
 import os.nublar.dashboard.ui.map.PaddockShape
-import os.nublar.dashboard.ui.map.PaddockVertex
-import os.nublar.dashboard.ui.map.SampleMapData
-import os.nublar.dashboard.ui.map.facilitiesToJson
-import os.nublar.dashboard.ui.map.loadPaddockCollection
-import os.nublar.dashboard.ui.map.toJson
+import os.nublar.dashboard.viewmodel.MapPreviewViewModel
 import os.nublar.designsystem.NublarColors
 import os.nublar.designsystem.NublarTheme
 import os.nublar.designsystem.NublarType
@@ -51,75 +49,30 @@ import java.awt.datatransfer.StringSelection
  * be iterated on without going through the full dashboard flow.
  *
  * Includes a paddock editor: select a paddock, toggle EDIT, drag its vertex
- * handles, then COPY JSON to overwrite dashboard/src/main/resources/paddocks.json.
+ * handles, then COPY JSON to overwrite
+ * dashboard/src/main/resources/data/isla-nublar/paddocks.json.
+ *
+ * All state and behavior live in [MapPreviewViewModel]; this file is pure UI.
  *
  * Run with: ./gradlew :dashboard:runMapPreview
  */
-fun main() = application {
-    val windowState = rememberWindowState(width = 1000.dp, height = 940.dp)
+fun main() {
+    // Build the ViewModel (which loads bundled JSON) on a background thread
+    // so the first Compose frame isn't blocked by classpath I/O.
+    val viewModel = runBlocking {
+        withContext(Dispatchers.IO) { MapPreviewViewModel() }
+    }
 
-    Window(
-        onCloseRequest = ::exitApplication,
-        title = "ISLAND MAP PREVIEW",
-        state = windowState,
-    ) {
-        NublarTheme {
-            var activeLayers by remember {
-                mutableStateOf(
-                    // Restore persisted layer filters; fall back to all-on for a first run.
-                    AppPreferences.mapPreviewLayers
-                        ?.mapNotNull { name -> MapLayer.entries.firstOrNull { it.name == name } }
-                        ?.toSet()
-                        ?: MapLayer.entries.toSet(),
-                )
-            }
-            LaunchedEffect(activeLayers) {
-                AppPreferences.mapPreviewLayers = activeLayers.map { it.name }.toSet()
-            }
-            var collection by remember { mutableStateOf(loadPaddockCollection()) }
-            var facilities by remember { mutableStateOf(SampleMapData.facilities) }
-            var selectedPaddockId by remember { mutableStateOf<String?>(null) }
-            var selectedVertexIndex by remember { mutableStateOf<Int?>(null) }
-            var selectedFacilityId by remember { mutableStateOf<String?>(null) }
-            var editMode by remember { mutableStateOf(false) }
-            var panEnabled by remember { mutableStateOf(true) }
+    application {
+        val windowState = rememberWindowState(width = 1000.dp, height = 940.dp)
 
-            // Selection is mutually exclusive between a paddock and a facility.
-            fun selectPaddock(id: String?) {
-                selectedPaddockId = id
-                selectedVertexIndex = null
-                if (id != null) selectedFacilityId = null
-            }
-            fun selectFacility(id: String?) {
-                selectedFacilityId = id
-                if (id != null) {
-                    selectedPaddockId = null
-                    selectedVertexIndex = null
-                }
-            }
-
-            // Inserts a new vertex at the midpoint of the edge following the
-            // selected node (or the last edge if no node is selected), then
-            // selects it so it can be dragged into place.
-            fun addVertexToSelectedPaddock() {
-                val id = selectedPaddockId ?: return
-                val shape = collection.paddocks.firstOrNull { it.id == id } ?: return
-                val verts = shape.vertices
-                if (verts.size < 2) return
-                val i = selectedVertexIndex ?: verts.lastIndex
-                val a = verts[i]
-                val b = verts[(i + 1) % verts.size]
-                val mid = PaddockVertex((a.x + b.x) / 2f, (a.y + b.y) / 2f)
-                collection = collection.copy(
-                    paddocks = collection.paddocks.map { s ->
-                        if (s.id == id) s.copy(vertices = s.vertices.toMutableList().apply { add(i + 1, mid) })
-                        else s
-                    },
-                )
-                selectedVertexIndex = i + 1
-            }
-
-            Column(
+        Window(
+            onCloseRequest = ::exitApplication,
+            title = "ISLAND MAP PREVIEW",
+            state = windowState,
+        ) {
+            NublarTheme {
+                Column(
                 modifier = Modifier.fillMaxSize().background(NublarColors.MonitorGray).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -131,13 +84,10 @@ fun main() = application {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     MapLayer.entries.forEach { layer ->
-                        val enabled = layer in activeLayers
                         Chip(
                             label = layer.name.uppercase(),
-                            active = enabled,
-                            onClick = {
-                                activeLayers = if (enabled) activeLayers - layer else activeLayers + layer
-                            },
+                            active = layer in viewModel.activeLayers,
+                            onClick = { viewModel.toggleLayer(layer) },
                         )
                     }
                 }
@@ -149,37 +99,33 @@ fun main() = application {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Chip(
-                        label = if (editMode) "EDIT: ON" else "EDIT: OFF",
-                        active = editMode,
-                        onClick = { editMode = !editMode },
+                        label = if (viewModel.editMode) "EDIT: ON" else "EDIT: OFF",
+                        active = viewModel.editMode,
+                        onClick = { viewModel.toggleEditMode() },
                     )
                     Chip(
-                        label = if (panEnabled) "PAN: ON" else "PAN: OFF",
-                        active = panEnabled,
-                        onClick = { panEnabled = !panEnabled },
+                        label = if (viewModel.panEnabled) "PAN: ON" else "PAN: OFF",
+                        active = viewModel.panEnabled,
+                        onClick = { viewModel.togglePan() },
                     )
                     Chip(
                         // Copies facilities when a facility is selected, else paddocks.
-                        label = if (selectedFacilityId != null) "COPY FACILITIES JSON" else "COPY PADDOCKS JSON",
+                        label = if (viewModel.selectedFacilityId != null) "COPY FACILITIES JSON" else "COPY PADDOCKS JSON",
                         active = false,
                         onClick = {
-                            val json = if (selectedFacilityId != null) {
-                                facilities.facilitiesToJson()
-                            } else {
-                                collection.toJson()
-                            }
                             Toolkit.getDefaultToolkit().systemClipboard
-                                .setContents(StringSelection(json), null)
+                                .setContents(StringSelection(viewModel.copyJsonText()), null)
                         },
                     )
-                    val paddockLabel = collection.paddocks.firstOrNull { it.id == selectedPaddockId }?.label
-                    val facilityLabel = facilities.firstOrNull { it.id == selectedFacilityId }?.label
+                    val paddockLabel = viewModel.selectedPaddock?.label
+                    val facilityLabel = viewModel.selectedFacility?.label
                     Text(
                         text = when {
                             facilityLabel != null -> "SELECTED: $facilityLabel (edit mode: drag or arrow keys to move)"
-                            paddockLabel != null && selectedVertexIndex != null ->
-                                "SELECTED: $paddockLabel — node ${selectedVertexIndex!! + 1} (arrow keys to nudge)"
-                            paddockLabel != null -> "SELECTED: $paddockLabel (edit mode: click a node)"
+                            paddockLabel != null && viewModel.selectedVertexIndex != null ->
+                                "SELECTED: $paddockLabel — node ${viewModel.selectedVertexIndex!! + 1} (arrow keys to nudge)"
+                            paddockLabel != null ->
+                                "SELECTED: $paddockLabel (edit mode: arrows move paddock, click a node to edit it)"
                             else -> "SELECTED: (none — click a paddock or facility)"
                         },
                         color = NublarColors.LabelCream,
@@ -191,49 +137,54 @@ fun main() = application {
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    MapViewport(
-                        contentWidth = 1400.dp,
-                        contentHeight = 1400.dp,
-                        panEnabled = panEnabled,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .background(NublarColors.DarkFrame)
-                            .padding(4.dp),
-                    ) {
-                        IslandMap(
-                            modifier = Modifier.size(1400.dp, 1400.dp),
-                            activeLayers = activeLayers,
-                            facilities = facilities,
-                            dinosaurs = SampleMapData.dinosaurs,
-                            vehicles = SampleMapData.vehicles,
-                            staff = SampleMapData.staff,
-                            paddockShapes = collection.paddocks,
-                            selectedPaddockId = selectedPaddockId,
-                            selectedVertexIndex = selectedVertexIndex,
-                            selectedFacilityId = selectedFacilityId,
-                            editMode = editMode,
-                            onPaddockSelected = { selectPaddock(it) },
-                            onVertexSelected = { selectedVertexIndex = it },
-                            onVertexMoved = { paddockId, vertexIndex, newPos ->
-                                collection = collection.copy(
-                                    paddocks = collection.paddocks.map { shape ->
-                                        if (shape.id != paddockId) return@map shape
-                                        shape.copy(
-                                            vertices = shape.vertices.mapIndexed { i, v ->
-                                                if (i == vertexIndex) newPos.toVertex() else v
-                                            },
-                                        )
-                                    },
-                                )
-                            },
-                            onFacilitySelected = { selectFacility(it) },
-                            onFacilityMoved = { facilityId, newPos ->
-                                facilities = facilities.map { f ->
-                                    if (f.id == facilityId) f.copy(position = newPos) else f
-                                }
-                            },
-                        )
+                    val mapSize = 1400.dp * viewModel.zoom
+                    Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                        MapViewport(
+                            contentWidth = mapSize,
+                            contentHeight = mapSize,
+                            panEnabled = viewModel.panEnabled,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(NublarColors.DarkFrame)
+                                .padding(4.dp),
+                        ) {
+                            IslandMap(
+                                modifier = Modifier.size(mapSize, mapSize),
+                                activeLayers = viewModel.activeLayers,
+                                zoom = viewModel.zoom,
+                                facilities = viewModel.facilities,
+                                dinosaurs = viewModel.dinosaurs,
+                                vehicles = viewModel.vehicles,
+                                staff = viewModel.staff,
+                                // Hidden paddocks are filtered out here, so they're
+                                // neither drawn nor hit-tested (can't swallow taps).
+                                paddockShapes = viewModel.visiblePaddocks,
+                                selectedPaddockId = viewModel.selectedPaddockId,
+                                selectedVertexIndex = viewModel.selectedVertexIndex,
+                                selectedFacilityId = viewModel.selectedFacilityId,
+                                editMode = viewModel.editMode,
+                                onPaddockSelected = { viewModel.selectPaddock(it) },
+                                onVertexSelected = { viewModel.selectVertex(it) },
+                                onVertexMoved = { paddockId, vertexIndex, newPos ->
+                                    viewModel.moveVertex(paddockId, vertexIndex, newPos)
+                                },
+                                onFacilitySelected = { viewModel.selectFacility(it) },
+                                onFacilityMoved = { facilityId, newPos ->
+                                    viewModel.moveFacility(facilityId, newPos)
+                                },
+                            )
+                        }
+
+                        // Zoom controls — preview-only overlay, bottom-left of the map.
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            ZoomButton("+") { viewModel.zoomIn() }
+                            ZoomButton("−") { viewModel.zoomOut() }
+                        }
                     }
 
                     Column(
@@ -241,22 +192,25 @@ fun main() = application {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         SelectionList(
-                            paddocks = collection.paddocks,
-                            facilities = facilities,
-                            selectedPaddockId = selectedPaddockId,
-                            selectedFacilityId = selectedFacilityId,
-                            onSelectPaddock = { selectPaddock(it) },
-                            onSelectFacility = { selectFacility(it) },
+                            paddocks = viewModel.collection.paddocks,
+                            facilities = viewModel.facilities,
+                            selectedPaddockId = viewModel.selectedPaddockId,
+                            selectedFacilityId = viewModel.selectedFacilityId,
+                            hiddenPaddockIds = viewModel.hiddenPaddockIds,
+                            onSelectPaddock = { viewModel.selectPaddock(it) },
+                            onSelectFacility = { viewModel.selectFacility(it) },
+                            onTogglePaddockVisibility = { viewModel.togglePaddockVisibility(it) },
                             modifier = Modifier.fillMaxWidth().weight(1f),
                         )
 
-                        val selectedPaddock = collection.paddocks.firstOrNull { it.id == selectedPaddockId }
-                        val selectedFacility = facilities.firstOrNull { it.id == selectedFacilityId }
+                        val selectedPaddock = viewModel.selectedPaddock
+                        val selectedFacility = viewModel.selectedFacility
                         when {
                             selectedPaddock != null -> PaddockInfoCard(
                                 paddock = selectedPaddock,
-                                selectedVertexIndex = selectedVertexIndex,
-                                onAddVertex = { addVertexToSelectedPaddock() },
+                                selectedVertexIndex = viewModel.selectedVertexIndex,
+                                onAddVertex = { viewModel.addVertexToSelectedPaddock() },
+                                onStepVertex = { viewModel.stepSelectedVertex(it) },
                                 modifier = Modifier.fillMaxWidth(),
                             )
                             selectedFacility != null -> FacilityInfoCard(
@@ -268,18 +222,31 @@ fun main() = application {
                 }
 
                 Text(
-                    "Editable paddocks: ${collection.paddocks.size}   " +
-                        "Editable facilities: ${facilities.size}   " +
-                        "Dinosaurs: ${SampleMapData.dinosaurs.size}",
+                    "Editable paddocks: ${viewModel.collection.paddocks.size}   " +
+                        "Editable facilities: ${viewModel.facilities.size}   " +
+                        "Dinosaurs: ${viewModel.dinosaurs.size}",
                     color = NublarColors.LabelCream,
                     style = NublarType.SystemText,
                 )
+            }
             }
         }
     }
 }
 
-private fun FractionalPoint.toVertex() = PaddockVertex(x, y)
+/** Square zoom in/out button overlaid on the preview map's bottom-left corner. */
+@androidx.compose.runtime.Composable
+private fun ZoomButton(label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .background(NublarColors.InsetPanel)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = NublarColors.LabelCream, style = NublarType.Header)
+    }
+}
 
 @androidx.compose.runtime.Composable
 private fun Chip(label: String, active: Boolean, onClick: () -> Unit) {
@@ -314,8 +281,10 @@ private fun SelectionList(
     facilities: List<FacilityMarker>,
     selectedPaddockId: String?,
     selectedFacilityId: String?,
+    hiddenPaddockIds: Set<String>,
     onSelectPaddock: (String?) -> Unit,
     onSelectFacility: (String?) -> Unit,
+    onTogglePaddockVisibility: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -327,7 +296,16 @@ private fun SelectionList(
     ) {
         Text("PADDOCKS", color = NublarColors.LabelCream, style = NublarType.Header)
         paddocks.forEach { p ->
-            SelectionRow(p.label, selected = p.id == selectedPaddockId) { onSelectPaddock(p.id) }
+            val hidden = p.id in hiddenPaddockIds
+            SelectionRow(
+                label = p.label,
+                selected = p.id == selectedPaddockId,
+                dimmed = hidden,
+                onClick = { onSelectPaddock(p.id) },
+                trailing = {
+                    EyeToggle(hidden = hidden, onClick = { onTogglePaddockVisibility(p.id) })
+                },
+            )
         }
         Spacer(Modifier.height(10.dp))
         Text("FACILITIES", color = NublarColors.LabelCream, style = NublarType.Header)
@@ -338,19 +316,68 @@ private fun SelectionList(
 }
 
 @androidx.compose.runtime.Composable
-private fun SelectionRow(label: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
+private fun SelectionRow(
+    label: String,
+    selected: Boolean,
+    dimmed: Boolean = false,
+    trailing: (@androidx.compose.runtime.Composable () -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(if (selected) NublarColors.StatusGreen else NublarColors.InsetPanel)
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 5.dp),
+            .padding(start = 8.dp, end = 4.dp, top = 5.dp, bottom = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = label,
-            color = if (selected) NublarColors.ScreenBlack else NublarColors.LabelCream,
+            color = when {
+                selected -> NublarColors.ScreenBlack
+                dimmed -> NublarColors.LabelCream.copy(alpha = 0.4f)
+                else -> NublarColors.LabelCream
+            },
             style = NublarType.SystemText,
+            modifier = Modifier.weight(1f),
         )
+        trailing?.invoke()
+    }
+}
+
+/**
+ * Show/hide toggle drawn from scratch: an eye outline with a pupil, struck
+ * through with a slash when hidden. Its own clickable sits above the row's,
+ * so toggling visibility doesn't also select the paddock.
+ */
+@androidx.compose.runtime.Composable
+private fun EyeToggle(hidden: Boolean, onClick: () -> Unit) {
+    val tint = if (hidden) NublarColors.LabelCream.copy(alpha = 0.45f) else NublarColors.LabelCream
+    Canvas(
+        modifier = Modifier
+            .size(20.dp)
+            .clickable(onClick = onClick),
+    ) {
+        val w = size.width
+        val h = size.height
+        val stroke = Stroke(width = w * 0.08f)
+        // Almond eye: two arcs mirrored about the horizontal midline.
+        val path = Path().apply {
+            moveTo(w * 0.12f, h * 0.5f)
+            quadraticTo(w * 0.5f, h * 0.16f, w * 0.88f, h * 0.5f)
+            quadraticTo(w * 0.5f, h * 0.84f, w * 0.12f, h * 0.5f)
+            close()
+        }
+        drawPath(path, color = tint, style = stroke)
+        drawCircle(tint, radius = w * 0.13f, center = Offset(w * 0.5f, h * 0.5f))
+        if (hidden) {
+            drawLine(
+                color = tint,
+                start = Offset(w * 0.16f, h * 0.82f),
+                end = Offset(w * 0.84f, h * 0.18f),
+                strokeWidth = w * 0.09f,
+            )
+        }
     }
 }
 
@@ -360,17 +387,32 @@ private fun PaddockInfoCard(
     paddock: PaddockShape,
     selectedVertexIndex: Int?,
     onAddVertex: () -> Unit,
+    onStepVertex: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     InfoCard(title = paddock.label, modifier = modifier) {
         InfoRow("ID", paddock.id)
         InfoRow("Type", if (paddock.carnivore) "Carnivore" else "Herbivore")
+        InfoRow("Enclosure", if (paddock.enclosure == PaddockEnclosure.Building) "Building" else "Fenced")
         InfoRow("Species", paddock.species.joinToString(", ").ifEmpty { "—" })
+        // A building is a single-point marker: no fence nodes to step through
+        // or add — you drag its icon instead.
+        if (paddock.enclosure == PaddockEnclosure.Building) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "No fences — drag the icon (in EDIT mode) or use the arrow keys to move it.",
+                color = NublarColors.LabelCream,
+                style = NublarType.SystemText,
+            )
+            return@InfoCard
+        }
         InfoRow("Nodes", paddock.vertices.size.toString())
-        InfoRow(
-            "Selected node",
-            selectedVertexIndex?.let { "#${it + 1}" } ?: "(none)",
-        )
+        // Selected-node readout with a prev/next stepper that walks the ring.
+        InfoRow("Selected node", selectedVertexIndex?.let { "#${it + 1}" } ?: "(none)") {
+            StepButton("<") { onStepVertex(-1) }
+            Spacer(Modifier.width(4.dp))
+            StepButton(">") { onStepVertex(1) }
+        }
         Spacer(Modifier.height(6.dp))
         Chip(label = "+ ADD VERTEX", active = false, onClick = onAddVertex)
         Text(
@@ -412,10 +454,18 @@ private fun InfoCard(
     }
 }
 
-/** A single label/value line inside an [InfoCard]. */
+/** A single label/value line inside an [InfoCard], with optional trailing controls. */
 @androidx.compose.runtime.Composable
-private fun InfoRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun InfoRow(
+    label: String,
+    value: String,
+    trailing: (@androidx.compose.runtime.Composable () -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(
             "$label:",
             color = NublarColors.LabelCream,
@@ -428,5 +478,20 @@ private fun InfoRow(label: String, value: String) {
             style = NublarType.SystemText,
             modifier = Modifier.weight(1f),
         )
+        trailing?.invoke()
+    }
+}
+
+/** Compact square stepper button (prev/next node) for an [InfoRow]. */
+@androidx.compose.runtime.Composable
+private fun StepButton(label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(20.dp)
+            .background(NublarColors.DarkFrame)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = NublarColors.LabelCream, style = NublarType.SystemText)
     }
 }

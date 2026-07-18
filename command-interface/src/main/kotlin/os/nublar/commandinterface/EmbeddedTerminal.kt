@@ -5,9 +5,12 @@ import com.jediterm.terminal.ui.JediTermWidget
 import com.jediterm.terminal.ui.settings.DefaultSettingsProvider
 import com.pty4j.PtyProcess
 import com.pty4j.PtyProcessBuilder
-import java.io.OutputStream
 import java.io.InputStream
+import java.io.OutputStream
+import java.nio.ByteBuffer
+import java.nio.CharBuffer
 import java.nio.charset.Charset
+import java.nio.charset.CodingErrorAction
 
 /**
  * A real PTY-backed terminal — spawns the user's actual shell (not a fake
@@ -18,6 +21,14 @@ import java.nio.charset.Charset
 class NublarTtyConnector(private val process: PtyProcess) : TtyConnector {
     private val charset: Charset = Charsets.UTF_8
 
+    // Incremental decoder: a multi-byte UTF-8 sequence can be split across two
+    // PTY reads, so decoding each chunk independently would corrupt it into
+    // U+FFFD replacement chars (garbling TUIs and non-ASCII output).
+    private val decoder = charset.newDecoder()
+        .onMalformedInput(CodingErrorAction.REPLACE)
+        .onUnmappableCharacter(CodingErrorAction.REPLACE)
+    private val bytes = ByteArray(8192)
+
     override fun init(questioner: com.jediterm.terminal.Questioner?): Boolean = true
 
     override fun close() {
@@ -26,12 +37,16 @@ class NublarTtyConnector(private val process: PtyProcess) : TtyConnector {
 
     override fun read(buf: CharArray, offset: Int, length: Int): Int {
         val inputStream: InputStream = process.inputStream
-        val bytes = ByteArray(length)
-        val read = inputStream.read(bytes, 0, length)
+        // At most `length` bytes: a UTF-8 char takes >= 1 byte, so the decoded
+        // output can never exceed `length` chars and always fits in `buf`.
+        val read = inputStream.read(bytes, 0, minOf(bytes.size, length))
         if (read <= 0) return read
-        val chars = String(bytes, 0, read, charset).toCharArray()
-        chars.copyInto(buf, offset, 0, chars.size)
-        return chars.size
+        val chars = CharBuffer.allocate(length)
+        decoder.decode(ByteBuffer.wrap(bytes, 0, read), chars, false)
+        chars.flip()
+        val count = chars.remaining()
+        chars.get(buf, offset, count)
+        return count
     }
 
     override fun write(bytes: ByteArray) {

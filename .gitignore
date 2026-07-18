@@ -32,6 +32,13 @@ scripts/backup-current-theme.sh.local
 
 # Gradle
 .gradle/
+.kotlin/
 !gradle/wrapper/gradle-wrapper.jar
 !gradle/wrapper/gradle-wrapper.properties
 !gradle/libs.versions.toml
+
+# Kimi Code per-project session / instruction dir (do not commit)
+.kimi-code/
+
+# Machine-specific local config (must never be committed)
+local.properties
