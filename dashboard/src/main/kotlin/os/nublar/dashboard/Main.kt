@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -24,6 +25,7 @@ import kotlinx.coroutines.withContext
 import os.nublar.dashboard.metrics.SystemMetricsReader
 import os.nublar.dashboard.ui.MetricsGrid
 import os.nublar.dashboard.ui.NetworkMachinesGrid
+import os.nublar.dashboard.ui.SecurityCamPanel
 import os.nublar.dashboard.ui.screens.ControlRoomPlanView
 import os.nublar.dashboard.ui.screens.IslandMapView
 import os.nublar.dashboard.ui.map.PaddockEnclosure
@@ -138,6 +140,8 @@ fun main() {
                             onOpen = { appViewModel.navigateTo(it) },
                             highlightedMachine = appViewModel.highlightedMachine,
                         )
+                        // Live security-camera subwindow (plays local CCTV frames).
+                        SecurityCamPanel(modifier = Modifier.width(480.dp).height(280.dp))
                         Spacer(Modifier.weight(1f))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             ChunkyButton(

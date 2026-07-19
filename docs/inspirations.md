@@ -20,6 +20,13 @@ remain original (see "Legal and Asset Guidelines" in the [README](../README.md))
 - **[Jurassic Park Systems CCTV](https://www.youtube.com/watch?v=Xl4bDROhwd0&t=345s)**
   — recreation of the park's CCTV/security-camera system; reference for the
   security screen's camera feeds and surveillance UI (link starts at 5:45).
+  **Used as footage** in the dashboard's SECURITY CAM subwindow: the app plays
+  frames the user extracts locally from this clip (see
+  `dashboard/.../ui/CctvView.kt`). The footage is **not** bundled or
+  redistributed with NublarOS — it stays on the user's machine under
+  `~/.nublaros/cctv/`. Full credit to the video's creator.
+  <!-- TODO: add the exact YouTube channel/creator name here to credit them. -->
+
 
 ## Articles
 

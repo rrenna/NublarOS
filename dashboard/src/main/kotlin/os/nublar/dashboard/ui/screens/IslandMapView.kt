@@ -37,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import os.nublar.dashboard.ui.VehicleImage
+import os.nublar.dashboard.ui.VehicleInfoPanel
 import os.nublar.dashboard.ui.map.IslandMap
 import os.nublar.dashboard.ui.map.MapLayer
 import os.nublar.dashboard.ui.map.MapViewport
@@ -245,109 +247,89 @@ private fun VehicleStatusPanel(modifier: Modifier = Modifier) {
             }
         }
 
-        VehicleDiagram(modifier = Modifier.weight(1f).fillMaxWidth())
-
-        Text("13 mph", color = NublarColors.LabelCream, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-
-        val expEntries = listOf(
-            "EXP 4" to NublarColors.StatusGreen,
-            "EXP 5" to NublarColors.StatusGreen,
-            "EXP 6" to NublarColors.WarningRed,
-            "EXP 7" to NublarColors.MapBlue,
-        )
-        expEntries.forEach { (label, color) ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(8.dp).background(color))
-                Spacer(modifier = Modifier.width(6.dp))
-                Box(modifier = Modifier.background(Color.Black).padding(horizontal = 8.dp, vertical = 2.dp)) {
-                    Text(label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            }
+        // Upper vehicle-status area, layered bottom-to-top: the roadway stripe,
+        // the top-down Explorer image over its center, then warning overlays.
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            VehicleRoadway(modifier = Modifier.matchParentSize())
+            VehicleImage(
+                assetName = "vehicle_explorer_top.png",
+                contentDescription = "Top-down view of Ford Explorer",
+                maxWidthRatio = 0.61f,
+                showShadow = true,
+                modifier = Modifier.matchParentSize(),
+            )
+            VehicleWarnings(modifier = Modifier.matchParentSize())
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            VehicleSilhouette(kind = VehicleKind.Van, modifier = Modifier.weight(1f).height(40.dp))
-            VehicleSilhouette(kind = VehicleKind.Suv, modifier = Modifier.weight(1f).height(40.dp))
+        // Lower vehicle-information panel: combined front + side Explorer graphic
+        // with the description overlaid between the two views, and the speed +
+        // EXP readout overlaid ON TOP of the image, left-aligned.
+        VehicleInfoPanel(modifier = Modifier.fillMaxWidth().height(120.dp)) {
+            Column(
+                modifier = Modifier.align(Alignment.CenterStart).padding(start = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Text("13 mph", color = NublarColors.LabelCream, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                listOf(
+                    "EXP 4" to NublarColors.StatusGreen,
+                    "EXP 5" to NublarColors.StatusGreen,
+                    "EXP 6" to NublarColors.WarningRed,
+                    "EXP 7" to NublarColors.MapBlue,
+                ).forEach { (label, color) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(modifier = Modifier.size(8.dp).background(color))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(modifier = Modifier.background(Color.Black).padding(horizontal = 6.dp, vertical = 1.dp)) {
+                            Text(label, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
+/**
+ * Backdrop for the vehicle-status area: a headlight beam and the horizontal
+ * roadway stripe. Drawn full-width so the stripe stays visible on both sides of
+ * the vehicle image, which covers its center.
+ */
 @Composable
-private fun VehicleDiagram(modifier: Modifier = Modifier) {
+private fun VehicleRoadway(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
         val cy = h / 2f
 
-        // Headlight cones.
+        // Headlight beam (front of the vehicle points left).
         val cone = Path().apply {
             moveTo(w * 0.02f, cy - h * 0.10f)
-            lineTo(w * 0.45f, cy - h * 0.04f)
-            lineTo(w * 0.45f, cy + h * 0.04f)
+            lineTo(w * 0.32f, cy - h * 0.04f)
+            lineTo(w * 0.32f, cy + h * 0.04f)
             lineTo(w * 0.02f, cy + h * 0.10f)
             close()
         }
         drawPath(cone, color = NublarColors.HighlightYellow.copy(alpha = 0.5f))
 
-        // Vehicle body, top-down.
-        drawRoundRect(
-            color = Color(0xFF9AA3AC),
-            topLeft = Offset(w * 0.45f, cy - h * 0.16f),
-            size = Size(w * 0.42f, h * 0.32f),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.02f),
-            style = Stroke(width = h * 0.02f),
-        )
+        // Roadway stripe across the full width.
         drawLine(
-            Color(0xFF9AA3AC),
-            Offset(w * 0.60f, cy - h * 0.16f),
-            Offset(w * 0.60f, cy + h * 0.16f),
-            strokeWidth = h * 0.015f,
+            NublarColors.LabelCream.copy(alpha = 0.6f),
+            Offset(0f, cy),
+            Offset(w, cy),
+            strokeWidth = h * 0.03f,
         )
-        drawLine(
-            Color(0xFF9AA3AC),
-            Offset(w * 0.75f, cy - h * 0.16f),
-            Offset(w * 0.75f, cy + h * 0.16f),
-            strokeWidth = h * 0.015f,
-        )
-        drawCircle(NublarColors.WarningRed, radius = h * 0.02f, center = Offset(w * 0.90f, cy - h * 0.14f))
-        drawCircle(NublarColors.WarningRed, radius = h * 0.02f, center = Offset(w * 0.90f, cy + h * 0.14f))
     }
 }
 
-private enum class VehicleKind { Van, Suv }
-
+/** Warning markers overlaid ON TOP of the vehicle image. */
 @Composable
-private fun VehicleSilhouette(kind: VehicleKind, modifier: Modifier = Modifier) {
+private fun VehicleWarnings(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
-        val stroke = Stroke(width = h * 0.06f, cap = StrokeCap.Round)
-        when (kind) {
-            VehicleKind.Van -> {
-                drawRoundRect(
-                    color = NublarColors.LabelCream,
-                    topLeft = Offset(w * 0.08f, h * 0.15f),
-                    size = Size(w * 0.84f, h * 0.55f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.03f),
-                    style = stroke,
-                )
-                drawLine(NublarColors.LabelCream, Offset(w * 0.30f, h * 0.15f), Offset(w * 0.30f, h * 0.70f), h * 0.03f)
-            }
-            VehicleKind.Suv -> {
-                val path = Path().apply {
-                    moveTo(w * 0.10f, h * 0.70f)
-                    lineTo(w * 0.10f, h * 0.35f)
-                    lineTo(w * 0.30f, h * 0.15f)
-                    lineTo(w * 0.75f, h * 0.15f)
-                    lineTo(w * 0.92f, h * 0.35f)
-                    lineTo(w * 0.92f, h * 0.70f)
-                    close()
-                }
-                drawPath(path, color = NublarColors.LabelCream, style = stroke)
-            }
-        }
-        drawCircle(NublarColors.DarkFrame, radius = h * 0.08f, center = Offset(w * 0.25f, h * 0.75f))
-        drawCircle(NublarColors.DarkFrame, radius = h * 0.08f, center = Offset(w * 0.75f, h * 0.75f))
+        val cy = h / 2f
+        drawCircle(NublarColors.WarningRed, radius = h * 0.03f, center = Offset(w * 0.94f, cy - h * 0.20f))
+        drawCircle(NublarColors.WarningRed, radius = h * 0.03f, center = Offset(w * 0.94f, cy + h * 0.20f))
     }
 }
 
