@@ -14,6 +14,7 @@ kotlin {
 
 dependencies {
     implementation(project(":design-system"))
+    implementation(project(":stormtrack"))
     implementation(compose.desktop.currentOs)
     implementation(libs.oshi.core)
     implementation(libs.kotlinx.serialization.json)

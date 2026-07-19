@@ -14,7 +14,9 @@
                 }
             ],
             "closed": true,
-            "enclosure": "Building"
+            "enclosure": "Building",
+            "fenceState": null,
+            "displayMode": "SpeciesIcon"
         },
         {
             "id": "tyrannosaurus-paddock",
@@ -75,7 +77,8 @@
             ],
             "closed": true,
             "enclosure": "Fenced",
-            "fenceState": "UNARMED"
+            "fenceState": "UNARMED",
+            "displayMode": "SpeciesIcon"
         },
         {
             "id": "brachiosaurus-paddock",
@@ -113,7 +116,8 @@
             ],
             "closed": true,
             "enclosure": "Fenced",
-            "fenceState": "UNARMED"
+            "fenceState": "UNARMED",
+            "displayMode": "SpeciesIcon"
         },
         {
             "id": "baryonyx-paddock",
@@ -158,7 +162,8 @@
             ],
             "closed": true,
             "enclosure": "Fenced",
-            "fenceState": "UNARMED"
+            "fenceState": "UNARMED",
+            "displayMode": "SpeciesIcon"
         },
         {
             "id": "segisaurus-proceratosaurus-paddock",
@@ -170,8 +175,8 @@
             "carnivore": true,
             "vertices": [
                 {
-                    "x": 0.542857,
-                    "y": 0.44571227
+                    "x": 0.53428537,
+                    "y": 0.4410694
                 },
                 {
                     "x": 0.6868926,
@@ -186,17 +191,46 @@
                     "y": 0.5525
                 },
                 {
-                    "x": 0.6285717,
-                    "y": 0.60285527
+                    "x": 0.72982174,
+                    "y": 0.57946336
                 },
                 {
-                    "x": 0.5085712,
-                    "y": 0.60285527
+                    "x": 0.677411,
+                    "y": 0.59294504
+                },
+                {
+                    "x": 0.63214314,
+                    "y": 0.6207125
+                },
+                {
+                    "x": 0.60008943,
+                    "y": 0.6792849
+                },
+                {
+                    "x": 0.5716072,
+                    "y": 0.6378566
+                },
+                {
+                    "x": 0.56928587,
+                    "y": 0.5682144
+                },
+                {
+                    "x": 0.55991095,
+                    "y": 0.52312493
+                },
+                {
+                    "x": 0.4908928,
+                    "y": 0.51053566
+                },
+                {
+                    "x": 0.48142853,
+                    "y": 0.46678573
                 }
             ],
             "closed": true,
             "enclosure": "Fenced",
-            "fenceState": "UNARMED"
+            "fenceState": "UNARMED",
+            "displayMode": "SpeciesIcon"
         },
         {
             "id": "dilophosaurus-paddock",
@@ -249,7 +283,8 @@
             ],
             "closed": true,
             "enclosure": "Fenced",
-            "fenceState": "UNARMED"
+            "fenceState": "UNARMED",
+            "displayMode": "SpeciesIcon"
         },
         {
             "id": "metriacanthosaurus-paddock",
@@ -265,7 +300,9 @@
                 }
             ],
             "closed": true,
-            "enclosure": "Building"
+            "enclosure": "Building",
+            "fenceState": null,
+            "displayMode": "SpeciesIcon"
         },
         {
             "id": "gallimimus-paddock",
@@ -277,7 +314,7 @@
             "vertices": [
                 {
                     "x": 0.43591064,
-                    "y": 0.35953572
+                    "y": 0.35239288
                 },
                 {
                     "x": 0.4467813,
@@ -301,28 +338,29 @@
                 },
                 {
                     "x": 0.5431078,
-                    "y": 0.44564372
+                    "y": 0.43492946
                 },
                 {
-                    "x": 0.50996476,
-                    "y": 0.4233579
+                    "x": 0.48178568,
+                    "y": 0.4657143
                 },
                 {
-                    "x": 0.4674503,
-                    "y": 0.42255774
+                    "x": 0.46035713,
+                    "y": 0.42714286
                 },
                 {
                     "x": 0.4305939,
-                    "y": 0.41125944
+                    "y": 0.4041166
                 },
                 {
                     "x": 0.41865182,
-                    "y": 0.38716105
+                    "y": 0.37644678
                 }
             ],
             "closed": true,
             "enclosure": "Fenced",
-            "fenceState": "UNARMED"
+            "fenceState": "UNARMED",
+            "displayMode": "SpeciesIcon"
         },
         {
             "id": "herrerasaurus-paddock",
@@ -338,7 +376,9 @@
                 }
             ],
             "closed": true,
-            "enclosure": "Building"
+            "enclosure": "Building",
+            "fenceState": null,
+            "displayMode": "SpeciesIcon"
         },
         {
             "id": "triceratops-paddock",
@@ -391,7 +431,8 @@
             ],
             "closed": true,
             "enclosure": "Fenced",
-            "fenceState": "UNARMED"
+            "fenceState": "UNARMED",
+            "displayMode": "SpeciesIcon"
         }
     ]
 }

@@ -4,11 +4,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.application
@@ -18,8 +18,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import os.nublar.dashboard.metrics.SystemMetricsReader
 import os.nublar.dashboard.ui.MetricsGrid
+import os.nublar.dashboard.ui.NetworkMachinesGrid
 import os.nublar.dashboard.ui.screens.ControlRoomPlanView
 import os.nublar.dashboard.ui.screens.IslandMapView
+import os.nublar.dashboard.ui.map.PaddockEnclosure
+import os.nublar.dashboard.ui.screens.JurassicParkSystemView
+import os.nublar.stormtrack.EarthWatchView
 import os.nublar.dashboard.viewmodel.AppViewModel
 import os.nublar.dashboard.viewmodel.ControlRoomViewModel
 import os.nublar.dashboard.viewmodel.IslandMapViewModel
@@ -57,6 +61,26 @@ fun main() {
             title = "NEDRYLAND MONITOR",
             state = windowState,
         ) {
+            // Events menu: trigger park incidents. Fences submenu fails (disarms)
+            // an individual paddock's fence — the disarm animation plays when the
+            // Island Map is on screen.
+            MenuBar {
+                Menu("Events") {
+                    Menu("Fences") {
+                        islandMapViewModel.paddocks
+                            .filter { it.enclosure == PaddockEnclosure.Fenced }
+                            .forEach { paddock ->
+                                Item(
+                                    "Fail ${paddock.label}",
+                                    enabled = paddock.armed,
+                                    onClick = { islandMapViewModel.failFence(paddock.id) },
+                                )
+                            }
+                        Separator()
+                        Item("Re-arm All Fences", onClick = { islandMapViewModel.rearmAllFences() })
+                    }
+                }
+            }
             NublarTheme {
                 when (appViewModel.screen) {
                     Screen.Dashboard -> Column(
@@ -68,9 +92,7 @@ fun main() {
                             metricsReader = metricsReader,
                             onToggleFullscreen = { appViewModel.toggleFullscreen() },
                         )
-                        Button(onClick = { appViewModel.navigateTo(Screen.ControlRoomPlanView) }) {
-                            Text("CONTROL ROOM / PLAN VIEW")
-                        }
+                        NetworkMachinesGrid(onOpen = { appViewModel.navigateTo(it) })
                     }
 
                     Screen.ControlRoomPlanView -> ControlRoomPlanView(
@@ -83,10 +105,22 @@ fun main() {
 
                     Screen.IslandMap -> IslandMapView(
                         onClose = { appViewModel.navigateTo(Screen.Dashboard) },
-                        onSwitchScreen = { appViewModel.navigateTo(Screen.ControlRoomPlanView) },
+                        onSwitchScreen = { appViewModel.navigateTo(Screen.JurassicParkSystem) },
                         splitFraction = appViewModel.splitFraction,
                         onSplitFractionChange = { appViewModel.updateSplitFraction(it) },
                         viewModel = islandMapViewModel,
+                    )
+
+                    Screen.JurassicParkSystem -> JurassicParkSystemView(
+                        onClose = { appViewModel.navigateTo(Screen.Dashboard) },
+                        onSwitchScreen = { appViewModel.navigateTo(Screen.ControlRoomPlanView) },
+                        splitFraction = appViewModel.splitFraction,
+                        onSplitFractionChange = { appViewModel.updateSplitFraction(it) },
+                    )
+
+                    Screen.WeatherComputer -> EarthWatchView(
+                        modifier = Modifier.fillMaxSize(),
+                        onExit = { appViewModel.navigateTo(Screen.Dashboard) },
                     )
                 }
             }

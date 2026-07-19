@@ -19,7 +19,10 @@ import os.nublar.dashboard.ui.map.VehicleMarker
 class IslandMapViewModel(
     repository: IslaNublarRepository = BundledIslaNublarRepository(),
 ) {
-    val paddocks: List<PaddockShape> = repository.paddocks().paddocks
+    /** Observable so the Events menu can fail (disarm) a paddock's fence live. */
+    var paddocks: List<PaddockShape> by mutableStateOf(repository.paddocks().paddocks)
+        private set
+
     val facilities: List<FacilityMarker> = repository.facilities()
     val dinosaurs: List<DinosaurMarker> = repository.dinosaurs()
     val vehicles: List<VehicleMarker> = repository.vehicles()
@@ -35,5 +38,15 @@ class IslandMapViewModel(
 
     fun selectPaddock(id: String?) {
         selectedPaddockId = id
+    }
+
+    /** Fails (disarms) a paddock's fence — armed -> unarmed, playing the disarm animation. */
+    fun failFence(id: String) {
+        paddocks = paddocks.map { if (it.id == id) it.copy(armed = false) else it }
+    }
+
+    /** Re-arms every paddock fence (resets the failures). */
+    fun rearmAllFences() {
+        paddocks = paddocks.map { if (it.armed) it else it.copy(armed = true) }
     }
 }

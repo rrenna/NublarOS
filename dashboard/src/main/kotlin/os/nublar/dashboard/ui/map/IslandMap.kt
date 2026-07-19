@@ -18,16 +18,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.material.Text
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.lerp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.focus.FocusRequester
@@ -55,6 +60,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -169,6 +175,42 @@ fun IslandMap(
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
 
+        // Per-paddock fence visuals, driven by the armed/unarmed status. A
+        // paddock going armed -> unarmed flashes its fence orange, then fades it
+        // out; one loaded already unarmed is simply hidden (no animation). The
+        // Canvas below reads these values, so updates re-draw the fences.
+        val fenceVisuals = remember { mutableStateMapOf<String, FenceVisual>() }
+        val prevArmed = remember { mutableStateMapOf<String, Boolean>() }
+        paddockShapes.forEach { shape ->
+            key(shape.id) {
+                LaunchedEffect(shape.armed) {
+                    val wasArmed = prevArmed[shape.id]
+                    prevArmed[shape.id] = shape.armed
+                    when {
+                        shape.armed -> fenceVisuals[shape.id] = FenceVisual(alpha = 1f, flash = 0f)
+                        wasArmed == true -> {
+                            // armed -> unarmed: flash the fence orange a few
+                            // times, then fade it away.
+                            repeat(3) {
+                                animate(0f, 1f, animationSpec = tween(110)) { v, _ ->
+                                    fenceVisuals[shape.id] = FenceVisual(alpha = 1f, flash = v)
+                                }
+                                animate(1f, 0f, animationSpec = tween(110)) { v, _ ->
+                                    fenceVisuals[shape.id] = FenceVisual(alpha = 1f, flash = v)
+                                }
+                            }
+                            animate(1f, 0f, animationSpec = tween(450)) { v, _ ->
+                                fenceVisuals[shape.id] = FenceVisual(alpha = v, flash = 0f)
+                            }
+                            fenceVisuals[shape.id] = FenceVisual(alpha = 0f, flash = 0f)
+                        }
+                        // Loaded already unarmed (or first composition): hidden.
+                        else -> fenceVisuals[shape.id] = FenceVisual(alpha = 0f, flash = 0f)
+                    }
+                }
+            }
+        }
+
         Canvas(modifier = Modifier.matchParentSize()) {
             val w = size.width
             val h = size.height
@@ -176,15 +218,6 @@ fun IslandMap(
 
             drawImage(bitmaps.island, dstSize = IntSize(w.toInt(), h.toInt()))
 
-            if (MapLayer.Facilities in activeLayers) {
-                facilities.forEach { marker ->
-                    drawFacility(
-                        marker, pt(marker.position), w, bitmaps.helipad, bitmaps.visitorCenter, bitmaps.dock,
-                        selected = marker.id == selectedFacilityId,
-                        editMode = editMode,
-                    )
-                }
-            }
             if (MapLayer.Dinosaurs in activeLayers) {
                 dinosaurs.forEach { marker -> drawDinosaur(marker, pt(marker.position), w) }
             }
@@ -194,25 +227,51 @@ fun IslandMap(
             if (MapLayer.Staff in activeLayers) {
                 staff.forEach { marker -> drawStaff(marker, pt(marker.position), w) }
             }
-            // Paddocks drawn last so their outlines/handles sit on top of all
-            // other markers — easier to see and select. Two passes: every fence
-            // first, then every icon/label on top, so a neighboring paddock's
-            // fence can never paint over another paddock's dinosaur icons.
+            // Draw order (bottom to top): paddock fences, then facility icons on
+            // top of the fences, then paddock species icons/labels/handles last
+            // so they sit above everything and stay easy to see and select.
+            // Within each paddock pass, paddocks are stacked by priority so the
+            // most relevant sit on top: a currently-failing fence (mid disarm
+            // animation) rises above the rest, and the selected paddock above
+            // that. sortedBy is stable, so equal-priority paddocks keep order.
+            val orderedPaddocks = paddockShapes.sortedBy { shape ->
+                val visible = (fenceVisuals[shape.id]?.alpha ?: if (shape.armed) 1f else 0f) > 0f
+                val failing = !shape.armed && !shape.isBuilding && visible
+                when {
+                    shape.id == selectedPaddockId -> 2
+                    failing -> 1
+                    else -> 0
+                }
+            }
+
             if (MapLayer.Paddocks in activeLayers) {
-                // Render the selected paddock LAST so it sits above every other
-                // paddock. sortedBy is stable, so unselected paddocks keep their
-                // order and the selected one (predicate true) moves to the end.
-                val ordered = if (selectedPaddockId == null) paddockShapes
-                    else paddockShapes.sortedBy { it.id == selectedPaddockId }
-                ordered.forEach { shape ->
+                orderedPaddocks.forEach { shape ->
+                    val fv = fenceVisuals[shape.id]
+                        ?: FenceVisual(alpha = if (shape.armed) 1f else 0f, flash = 0f)
                     drawPaddockFence(
                         shape, ::pt, w,
                         selected = shape.id == selectedPaddockId,
                         editMode = editMode,
+                        alpha = fv.alpha,
+                        flash = fv.flash,
                     )
                 }
-                ordered.forEach { shape ->
+            }
+            // Facilities drawn AFTER paddock fences so their icons sit on top of
+            // the fence lines (but below paddock species icons/labels).
+            if (MapLayer.Facilities in activeLayers) {
+                facilities.forEach { marker ->
+                    drawFacility(
+                        marker, pt(marker.position), w, bitmaps.helipad, bitmaps.visitorCenter, bitmaps.dock,
+                        selected = marker.id == selectedFacilityId,
+                        editMode = editMode,
+                    )
+                }
+            }
+            if (MapLayer.Paddocks in activeLayers) {
+                orderedPaddocks.forEach { shape ->
                     val isSel = shape.id == selectedPaddockId
+                    val fenceAlpha = fenceVisuals[shape.id]?.alpha ?: if (shape.armed) 1f else 0f
                     drawPaddockMarker(
                         shape, ::pt, w, textMeasurer,
                         speciesIcons(
@@ -225,6 +284,7 @@ fun IslandMap(
                         editMode = editMode,
                         selectedVertexIndex = if (isSel) selectedVertexIndex else null,
                         zoom = zoom,
+                        fenceAlpha = fenceAlpha,
                     )
                 }
             }
@@ -630,11 +690,21 @@ private fun paddockLineColor(selected: Boolean, editMode: Boolean): Color = when
     else -> Color(0xFFE2E0BF)                 // default cream
 }
 
+/** Per-paddock fence render state driven by the disarm animation. */
+private data class FenceVisual(val alpha: Float, val flash: Float)
+
+/** Fence outline colors: armed (dark red), and the disarm flash (selection yellow). */
+private val FENCE_ARMED_COLOR = Color(0xFF7A1616)
+private val FENCE_DISARM_FLASH = SELECT_LOCKED
+
 /**
  * Draws only a paddock's fence outline (and its selection tint fill). Split out
  * from the icon/label marker so every fence can be drawn in a first pass and
  * the species icons layered on top in a second pass — otherwise a neighboring
  * paddock's fence could paint over an earlier paddock's icons.
+ *
+ * [alpha] fades the fence out as it disarms (0 = hidden); [flash] (0..1) mixes
+ * the armed dark-red toward the disarm orange for the flashing pulse.
  */
 private fun DrawScope.drawPaddockFence(
     shape: PaddockShape,
@@ -642,16 +712,26 @@ private fun DrawScope.drawPaddockFence(
     w: Float,
     selected: Boolean,
     editMode: Boolean,
+    alpha: Float = 1f,
+    flash: Float = 0f,
 ) {
     // A Building has no fence to trace — it's just its icon.
     if (shape.vertices.isEmpty() || shape.isBuilding) return
+    // Fully disarmed (faded out) and not selected: nothing to draw. A selected
+    // paddock still shows its highlight so it stays visible/selectable.
+    if (alpha <= 0f && !selected) return
     val points = shape.toFractionalPoints()
     val lineColor = paddockLineColor(selected, editMode)
     // Fence stroke, 15% thinner than the original 0.006/0.004 of map width.
     val lineWidth = if (selected) w * 0.0051f else w * 0.0034f
-    // Fence outline is dark red by default; a selected paddock keeps the
-    // selection highlight (green/yellow) so it still stands out.
-    val fenceColor = if (selected) lineColor else Color(0xFF7A1616)
+    // A selected paddock keeps the selection highlight (green/yellow) so it
+    // stands out; otherwise the fence is dark red, flashing toward orange while
+    // disarming and fading out via [alpha].
+    val fenceColor = if (selected) {
+        lineColor
+    } else {
+        lerp(FENCE_ARMED_COLOR, FENCE_DISARM_FLASH, flash).copy(alpha = alpha)
+    }
 
     val path = Path().apply {
         points.forEachIndexed { index, point ->
@@ -673,6 +753,46 @@ private fun DrawScope.drawPaddockFence(
 /** Fence-status color: an alert red that stays legible on the dark backing. */
 private val PADDOCK_STATUS_COLOR = Color(0xFFEB5757)
 
+/** Red pill background for the disarm "UNARMED" label. */
+private val UNARMED_LABEL_RED = Color(0xFFC0392B)
+
+/**
+ * The "UNARMED" pill (white text on a red rounded background) shown centered in
+ * a paddock while its fence is disarming. [alpha] fades it out with the fence.
+ */
+private fun DrawScope.drawUnarmedLabel(
+    centroid: Offset,
+    w: Float,
+    markerScale: Float,
+    textMeasurer: TextMeasurer,
+    alpha: Float,
+) {
+    val layout = textMeasurer.measure(
+        text = "UNARMED",
+        style = TextStyle(
+            color = Color.White.copy(alpha = alpha),
+            fontSize = (w * 0.020f * markerScale).toSp(),
+            fontWeight = FontWeight.Black,
+            fontStyle = FontStyle.Italic,
+            textAlign = TextAlign.Center,
+        ),
+    )
+    val padX = w * 0.010f * markerScale
+    val padY = w * 0.005f * markerScale
+    val boxW = layout.size.width + 2 * padX
+    val boxH = layout.size.height + 2 * padY
+    drawRoundRect(
+        color = UNARMED_LABEL_RED.copy(alpha = alpha),
+        topLeft = Offset(centroid.x - boxW / 2f, centroid.y - boxH / 2f),
+        size = Size(boxW, boxH),
+        cornerRadius = CornerRadius(boxH / 2f),
+    )
+    drawText(
+        layout,
+        topLeft = Offset(centroid.x - layout.size.width / 2f, centroid.y - layout.size.height / 2f),
+    )
+}
+
 /**
  * Draws a paddock's center content — either its species icon(s) or its name +
  * fence status, per [PaddockShape.displayMode] — plus, in edit mode, its vertex
@@ -689,6 +809,9 @@ private fun DrawScope.drawPaddockMarker(
     editMode: Boolean,
     selectedVertexIndex: Int?,
     zoom: Float = 1f,
+    // Current fence visibility (0 = fully faded out). While a fence is disarming
+    // (>0 and failed) an UNARMED label is shown in place of the species icons.
+    fenceAlpha: Float = 1f,
 ) {
     if (shape.vertices.isEmpty()) return
     // Marker size dampening: the map canvas — and thus `w` — grows 1:1 with zoom,
@@ -700,9 +823,17 @@ private fun DrawScope.drawPaddockMarker(
     val lineColor = paddockLineColor(selected, editMode)
     val centroid = polygonCentroid(points.map(pt))
 
+    // A failed (unarmed) fenced paddock hides its species icons; buildings have
+    // no fence and can't fail, so they always show theirs.
+    val failed = !shape.armed && !shape.isBuilding
     when (shape.displayMode) {
         PaddockDisplayMode.SpeciesIcon ->
-            drawPaddockIcons(shape, centroid, w, markerScale, lineColor, selected, icons)
+            if (!failed) {
+                drawPaddockIcons(shape, centroid, w, markerScale, lineColor, selected, icons)
+            } else if (fenceAlpha > 0f) {
+                // Disarming: show the UNARMED pill (fading out with the fence).
+                drawUnarmedLabel(centroid, w, markerScale, textMeasurer, fenceAlpha)
+            }
         PaddockDisplayMode.Name ->
             drawPaddockNameBlock(shape, centroid, w, markerScale, lineColor, selected, textMeasurer)
     }
@@ -732,7 +863,8 @@ private fun DrawScope.drawPaddockIcons(
     icons: List<ImageBitmap>,
 ) {
     if (icons.isEmpty()) return
-    val iconRadius = w * 0.020f * markerScale
+    // 15% smaller than the original 0.020 of map width.
+    val iconRadius = w * 0.017f * markerScale
     val gap = w * 0.006f * markerScale
     val totalWidth = icons.size * (2 * iconRadius) + (icons.size - 1) * gap
     // A building has no outline to recolor, so the icon itself carries the

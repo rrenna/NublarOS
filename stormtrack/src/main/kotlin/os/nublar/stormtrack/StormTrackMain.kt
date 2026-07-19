@@ -9,21 +9,19 @@ import androidx.compose.ui.window.rememberWindowState
 import os.nublar.designsystem.NublarTheme
 
 /**
- * StormTrack proof-of-concept entry point: a real OpenGL 3D storm rendered
- * offscreen via LWJGL + OSMesa and displayed inside a Compose window.
+ * StormTrack / EarthWatch entry point: the weather-computer workstation UI (two
+ * live viewports over the control deck). The 3D storm animation still drives the
+ * "Animation" window; see [Storm3DView].
  */
 fun main() {
     application {
         Window(
-            onCloseRequest = {
-                GlContext.destroy()
-                exitApplication()
-            },
-            title = "STORMTRACK",
-            state = rememberWindowState(width = 1280.dp, height = 960.dp),
+            onCloseRequest = ::exitApplication,
+            title = "EARTHWATCH",
+            state = rememberWindowState(width = 1440.dp, height = 1024.dp),
         ) {
             NublarTheme {
-                Storm3DView(modifier = Modifier.fillMaxSize())
+                EarthWatchView(modifier = Modifier.fillMaxSize())
             }
         }
     }

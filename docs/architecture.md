@@ -159,10 +159,25 @@ record the spike outcome here once run.
 
 ## StormTrack Rendering
 
-First prototype: Compose Canvas (Skia-backed) for the island overlay and
-storm field — equivalent fidelity to the originally-planned SVG+Canvas
-approach, now in Kotlin. Cloud/pressure frame data loads from YAML/JSON per
-the existing simulation data model in the README.
+**Decision: a pure-Kotlin software 3D renderer** (perspective projection,
+z-buffer, flat shading, alpha-blended cloud layers) rendered offscreen to an
+`ImageBitmap` and displayed in a Compose window — real 3D with zero native
+dependencies. Hardware GL was evaluated and ruled out for embedding in a
+Compose Desktop process: GLFW can't initialize alongside AWT/Skiko on macOS
+(it demands the process's first thread), LWJGL's AWT GL canvas doesn't support
+macOS, and LWJGL publishes no OSMesa artifact for windowless rendering. A
+separate GLFW-only window/process remains the escape hatch if GPU rendering is
+ever needed. The CPU rasterizer also happens to match the module's aesthetic:
+low-resolution, flat-shaded, deliberately pixelated output is the early-90s
+workstation look.
+
+Today (`stormtrack/`): `SoftwareRenderer3D` (island cone + rotating translucent
+storm column + eye marker, ~30fps at 640×480 upscaled unfiltered), displayed by
+`Storm3DView`; `Mat4` holds the matrix math; `./gradlew :stormtrack:run`
+launches it, and `./gradlew :stormtrack:renderStormFrame` writes one frame
+headlessly to `stormtrack/build/storm-frame.png` for verification. Cloud/pressure
+frame data will load from JSON per the simulation data model in
+`docs/stormtrack.md`.
 
 <details>
 <summary>Superseded: original Tauri-based recommendation (kept for history)</summary>

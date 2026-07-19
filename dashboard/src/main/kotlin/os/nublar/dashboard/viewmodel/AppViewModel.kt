@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import os.nublar.dashboard.AppPreferences
 
 /** Top-level screens the app can show. */
-enum class Screen { Dashboard, ControlRoomPlanView, IslandMap }
+enum class Screen { Dashboard, ControlRoomPlanView, IslandMap, JurassicParkSystem, WeatherComputer }
 
 /**
  * App-level ViewModel: which screen is active (persisted across launches),

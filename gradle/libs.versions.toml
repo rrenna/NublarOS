@@ -13,9 +13,6 @@ pty4j = { module = "org.jetbrains.pty4j:pty4j", version.ref = "pty4j" }
 jediterm-core = { module = "org.jetbrains.jediterm:jediterm-core", version.ref = "jediterm" }
 jediterm-ui = { module = "org.jetbrains.jediterm:jediterm-ui", version.ref = "jediterm" }
 lwjgl-bom = { module = "org.lwjgl:lwjgl-bom", version.ref = "lwjgl" }
-lwjgl-core = { module = "org.lwjgl:lwjgl" }
-lwjgl-opengl = { module = "org.lwjgl:lwjgl-opengl" }
-lwjgl-osmesa = { module = "org.lwjgl:lwjgl-osmesa", version.ref = "lwjgl" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 [plugins]

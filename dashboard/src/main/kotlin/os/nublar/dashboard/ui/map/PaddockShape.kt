@@ -33,6 +33,13 @@ data class PaddockShape(
     val fenceState: String? = null,
     /** What the paddock renders at its center: its species icon(s), or its name + fence status. */
     val displayMode: PaddockDisplayMode = PaddockDisplayMode.SpeciesIcon,
+    /**
+     * Whether this paddock's fence is armed (electrified/active). An armed fence
+     * is drawn; when it transitions armed -> unarmed the map plays a disarm
+     * animation (flash orange, then fade away), after which the fence is hidden.
+     * Buildings have no fence, so this has no visual effect on them.
+     */
+    val armed: Boolean = true,
 ) {
     fun toFractionalPoints(): List<FractionalPoint> = vertices.map { FractionalPoint(it.x, it.y) }
 

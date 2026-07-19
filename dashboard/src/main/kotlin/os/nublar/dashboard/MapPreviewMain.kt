@@ -117,6 +117,16 @@ fun main() {
                                 .setContents(StringSelection(viewModel.copyJsonText()), null)
                         },
                     )
+                    // Arm/disarm the selected paddock to see the fence disarm
+                    // animation (disarming a fence flashes it orange, then fades).
+                    val armed = viewModel.selectedPaddock?.armed
+                    if (armed != null) {
+                        Chip(
+                            label = if (armed) "FENCE: ARMED" else "FENCE: UNARMED",
+                            active = armed,
+                            onClick = { viewModel.toggleSelectedArmed() },
+                        )
+                    }
                     val paddockLabel = viewModel.selectedPaddock?.label
                     val facilityLabel = viewModel.selectedFacility?.label
                     Text(

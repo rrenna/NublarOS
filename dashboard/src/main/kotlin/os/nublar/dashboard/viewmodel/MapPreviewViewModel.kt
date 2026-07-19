@@ -157,6 +157,20 @@ class MapPreviewViewModel(
         )
     }
 
+    /**
+     * Toggles the selected paddock's armed status. Flipping armed -> unarmed on
+     * a fenced paddock triggers the map's disarm animation (flash orange, then
+     * the fence fades away).
+     */
+    fun toggleSelectedArmed() {
+        val id = selectedPaddockId ?: return
+        collection = collection.copy(
+            paddocks = collection.paddocks.map { shape ->
+                if (shape.id == id) shape.copy(armed = !shape.armed) else shape
+            },
+        )
+    }
+
     fun moveFacility(facilityId: String, newPos: FractionalPoint) {
         facilities = facilities.map { f ->
             if (f.id == facilityId) f.copy(position = newPos) else f
