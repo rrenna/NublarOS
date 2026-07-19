@@ -771,21 +771,20 @@ private fun DrawScope.drawUnarmedLabel(
         text = "UNARMED",
         style = TextStyle(
             color = Color.White.copy(alpha = alpha),
-            fontSize = (w * 0.020f * markerScale).toSp(),
+            fontSize = (w * 0.0117f * markerScale).toSp(),
             fontWeight = FontWeight.Black,
             fontStyle = FontStyle.Italic,
             textAlign = TextAlign.Center,
         ),
     )
-    val padX = w * 0.010f * markerScale
-    val padY = w * 0.005f * markerScale
+    val padX = w * 0.009f * markerScale
+    val padY = w * 0.0045f * markerScale
     val boxW = layout.size.width + 2 * padX
     val boxH = layout.size.height + 2 * padY
-    drawRoundRect(
+    drawRect(
         color = UNARMED_LABEL_RED.copy(alpha = alpha),
         topLeft = Offset(centroid.x - boxW / 2f, centroid.y - boxH / 2f),
         size = Size(boxW, boxH),
-        cornerRadius = CornerRadius(boxH / 2f),
     )
     drawText(
         layout,

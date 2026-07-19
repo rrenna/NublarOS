@@ -12,6 +12,8 @@ object AppPreferences {
 
     private const val KEY_LAST_SCREEN = "last_screen"
     private const val KEY_MAP_PREVIEW_LAYERS = "map_preview_layers"
+    private const val KEY_SHADER = "screen_shader"
+    private const val KEY_FULLSCREEN = "fullscreen"
 
     /** Name of the last-active screen, or null if never set / not persisted. */
     var lastScreen: String?
@@ -36,6 +38,22 @@ object AppPreferences {
         set(value) {
             if (value == null) prefs.remove(KEY_MAP_PREVIEW_LAYERS)
             else prefs.put(KEY_MAP_PREVIEW_LAYERS, value.joinToString(","))
+            runCatching { prefs.flush() }
+        }
+
+    /** Name of the selected screen shader, or null if never set. */
+    var shader: String?
+        get() = prefs.get(KEY_SHADER, null)
+        set(value) {
+            if (value == null) prefs.remove(KEY_SHADER) else prefs.put(KEY_SHADER, value)
+            runCatching { prefs.flush() }
+        }
+
+    /** Whether kiosk fullscreen is enabled. */
+    var fullscreen: Boolean
+        get() = prefs.getBoolean(KEY_FULLSCREEN, false)
+        set(value) {
+            prefs.putBoolean(KEY_FULLSCREEN, value)
             runCatching { prefs.flush() }
         }
 }

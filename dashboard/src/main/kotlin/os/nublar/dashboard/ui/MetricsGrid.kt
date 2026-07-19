@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,7 +28,6 @@ private const val REFRESH_INTERVAL_MS = 1000L
 @Composable
 fun MetricsGrid(
     metricsReader: SystemMetricsReader,
-    onToggleFullscreen: () -> Unit,
 ) {
     var snapshot by remember { mutableStateOf<SystemSnapshot?>(null) }
 
@@ -56,9 +54,6 @@ fun MetricsGrid(
             MetricTile("MAIN GRID LOAD", snapshot?.mainGridLoadPercent, "%")
             MetricTile("OPERATIONS MEMORY", snapshot?.operationsMemoryUsedPercent, "%")
             MetricTile("MINI ARRAY CAPACITY", snapshot?.miniArrayCapacityUsedPercent, "%")
-        }
-        Button(onClick = onToggleFullscreen) {
-            Text("CONTROL ROOM MODE", style = NublarType.SystemText)
         }
     }
 }

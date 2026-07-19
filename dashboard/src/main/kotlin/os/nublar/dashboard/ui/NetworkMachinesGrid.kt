@@ -1,5 +1,6 @@
 package os.nublar.dashboard.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.unit.dp
 import os.nublar.dashboard.viewmodel.Screen
+import os.nublar.designsystem.NublarColors
 import os.nublar.designsystem.NublarType
 import os.nublar.designsystem.SectorStatus
 import os.nublar.designsystem.components.BeveledPanel
@@ -38,9 +40,9 @@ private fun SectorStatus.linkLabel(): String = when (this) {
 // The eight networked park machines. The three with a [target] open their
 // respective screens; the rest are status-only nodes.
 private val PARK_MACHINES = listOf(
-    NetworkMachine("Dennis Nedry's Machine", SectorStatus.Normal, Screen.ControlRoomPlanView),
-    NetworkMachine("Animal Paddocks", SectorStatus.Normal, Screen.IslandMap),
-    NetworkMachine("Jurassic Park System", SectorStatus.Normal, Screen.JurassicParkSystem),
+    // Dennis Nedry's machine drives the Control Room, Animal Paddocks, and
+    // Jurassic Park System screens — cycle between them with the SCREEN button.
+    NetworkMachine("Dennis Nedry", SectorStatus.Normal, Screen.ControlRoomPlanView),
     NetworkMachine("EarthWatch Weather", SectorStatus.Normal, Screen.WeatherComputer),
     NetworkMachine("Main Gate Security", SectorStatus.Normal),
     NetworkMachine("Visitor Center Kiosk", SectorStatus.Moderate),
@@ -55,7 +57,11 @@ private val PARK_MACHINES = listOf(
  * are status-only. Laid out four-across in two rows.
  */
 @Composable
-fun NetworkMachinesGrid(onOpen: (Screen) -> Unit, modifier: Modifier = Modifier) {
+fun NetworkMachinesGrid(
+    onOpen: (Screen) -> Unit,
+    modifier: Modifier = Modifier,
+    highlightedMachine: String? = null,
+) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("PARK NETWORK", style = NublarType.Header)
         PARK_MACHINES.chunked(4).forEach { rowMachines ->
@@ -64,7 +70,12 @@ fun NetworkMachinesGrid(onOpen: (Screen) -> Unit, modifier: Modifier = Modifier)
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 rowMachines.forEach { machine ->
-                    MachineTile(machine, onOpen, modifier = Modifier.weight(1f))
+                    MachineTile(
+                        machine,
+                        onOpen,
+                        highlighted = machine.name == highlightedMachine,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
                 // Pad a short final row so tiles keep a consistent width.
                 repeat(4 - rowMachines.size) { Spacer(Modifier.weight(1f)) }
@@ -74,21 +85,28 @@ fun NetworkMachinesGrid(onOpen: (Screen) -> Unit, modifier: Modifier = Modifier)
 }
 
 @Composable
-private fun MachineTile(machine: NetworkMachine, onOpen: (Screen) -> Unit, modifier: Modifier = Modifier) {
+private fun MachineTile(
+    machine: NetworkMachine,
+    onOpen: (Screen) -> Unit,
+    highlighted: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
     val clickable = machine.target != null
     BeveledPanel(
-        modifier = modifier.then(
-            if (clickable) {
-                Modifier
-                    .clickable { onOpen(machine.target!!) }
-                    .pointerHoverIcon(PointerIcon.Hand)
-            } else {
-                Modifier
-            },
-        ),
+        modifier = modifier
+            .then(if (highlighted) Modifier.border(3.dp, NublarColors.HighlightYellow) else Modifier)
+            .then(
+                if (clickable) {
+                    Modifier
+                        .clickable { onOpen(machine.target!!) }
+                        .pointerHoverIcon(PointerIcon.Hand)
+                } else {
+                    Modifier
+                },
+            ),
     ) {
         Column {
-            Text(text = machine.name, style = NublarType.Header)
+            Text(text = machine.name, style = NublarType.Header, color = NublarColors.LabelCream)
             Spacer(Modifier.height(6.dp))
             Text(
                 text = machine.status.linkLabel(),

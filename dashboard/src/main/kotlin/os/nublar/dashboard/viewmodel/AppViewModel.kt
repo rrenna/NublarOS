@@ -4,9 +4,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import os.nublar.dashboard.AppPreferences
+import os.nublar.designsystem.ScreenShader
 
 /** Top-level screens the app can show. */
-enum class Screen { Dashboard, ControlRoomPlanView, IslandMap, JurassicParkSystem, WeatherComputer }
+enum class Screen { Dashboard, ControlRoomPlanView, IslandMap, JurassicParkSystem, WeatherComputer, Settings, ShowSync }
 
 /**
  * App-level ViewModel: which screen is active (persisted across launches),
@@ -22,6 +23,10 @@ class AppViewModel(
     // can exercise the ViewModel without touching the user's real prefs.
     restoreScreen: () -> String? = { AppPreferences.lastScreen },
     private val persistScreen: (String) -> Unit = { AppPreferences.lastScreen = it },
+    restoreShader: () -> String? = { AppPreferences.shader },
+    private val persistShader: (String) -> Unit = { AppPreferences.shader = it },
+    restoreFullscreen: () -> Boolean = { AppPreferences.fullscreen },
+    private val persistFullscreen: (Boolean) -> Unit = { AppPreferences.fullscreen = it },
 ) {
     var screen by mutableStateOf(
         restoreScreen()
@@ -30,19 +35,54 @@ class AppViewModel(
     )
         private set
 
-    var isFullscreen by mutableStateOf(false)
+    /** Kiosk fullscreen: the window fills the screen with no title bar. Off by default. */
+    var fullscreen by mutableStateOf(restoreFullscreen())
+        private set
+
+    /** Full-screen post-process shader. Defaults to the scanline CRT effect. */
+    var selectedShader by mutableStateOf(
+        restoreShader()
+            ?.let { runCatching { ScreenShader.valueOf(it) }.getOrNull() }
+            ?: ScreenShader.Crt,
+    )
         private set
 
     var splitFraction by mutableStateOf(0.535f)
         private set
+
+    /** Networked machine highlighted by a show event (by name), or null. */
+    var highlightedMachine by mutableStateOf<String?>(null)
+        private set
+
+    fun highlightMachine(name: String?) {
+        highlightedMachine = name
+    }
+
+    /** Whether Dennis Nedry's desktop stopwatch window is shown (overlay). */
+    var nedryTimerVisible by mutableStateOf(false)
+        private set
+
+    fun toggleNedryTimer() {
+        nedryTimerVisible = !nedryTimerVisible
+    }
+
+    fun hideNedryTimer() {
+        nedryTimerVisible = false
+    }
 
     fun navigateTo(target: Screen) {
         screen = target
         persistScreen(target.name)
     }
 
-    fun toggleFullscreen() {
-        isFullscreen = !isFullscreen
+    fun updateFullscreen(value: Boolean) {
+        fullscreen = value
+        persistFullscreen(value)
+    }
+
+    fun selectShader(shader: ScreenShader) {
+        selectedShader = shader
+        persistShader(shader.name)
     }
 
     fun updateSplitFraction(fraction: Float) {
