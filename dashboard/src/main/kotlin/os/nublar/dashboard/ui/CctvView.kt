@@ -35,6 +35,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import os.nublar.dashboard.ui.screens.bevelBorder
 import os.nublar.designsystem.NublarColors
+import os.nublar.designsystem.NublarFonts
+import os.nublar.designsystem.rememberBlinkOn
 import java.io.File
 
 /**
@@ -99,8 +101,8 @@ fun CctvView(modifier: Modifier = Modifier) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text("NO SIGNAL", color = NublarColors.StatusGreen, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("place frames in ~/.nublaros/cctv", color = NublarColors.LabelCream.copy(alpha = 0.7f), fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                Text("NO SIGNAL", color = NublarColors.StatusGreen, fontFamily = NublarFonts.Mono, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("place frames in ~/.nublaros/cctv", color = NublarColors.LabelCream.copy(alpha = 0.7f), fontFamily = NublarFonts.Mono, fontSize = 10.sp)
             }
         }
     }

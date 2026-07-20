@@ -16,12 +16,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Text
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -31,11 +36,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import os.nublar.dashboard.ui.map.FacilityMarker
+import os.nublar.dashboard.ui.map.FractionalPoint
 import os.nublar.dashboard.ui.map.IslandMap
 import os.nublar.dashboard.ui.map.MapLayer
 import os.nublar.dashboard.ui.map.MapViewport
 import os.nublar.dashboard.ui.map.PaddockEnclosure
 import os.nublar.dashboard.ui.map.PaddockShape
+import os.nublar.dashboard.ui.map.PaddockVertex
 import os.nublar.dashboard.viewmodel.MapPreviewViewModel
 import os.nublar.designsystem.NublarColors
 import os.nublar.designsystem.NublarTheme
@@ -220,7 +227,9 @@ fun main() {
                                 paddock = selectedPaddock,
                                 selectedVertexIndex = viewModel.selectedVertexIndex,
                                 onAddVertex = { viewModel.addVertexToSelectedPaddock() },
+                                onRemoveVertex = { viewModel.removeSelectedVertex() },
                                 onStepVertex = { viewModel.stepSelectedVertex(it) },
+                                onMoveVertex = { idx, pos -> viewModel.moveVertex(selectedPaddock.id, idx, pos) },
                                 modifier = Modifier.fillMaxWidth(),
                             )
                             selectedFacility != null -> FacilityInfoCard(
@@ -397,7 +406,9 @@ private fun PaddockInfoCard(
     paddock: PaddockShape,
     selectedVertexIndex: Int?,
     onAddVertex: () -> Unit,
+    onRemoveVertex: () -> Unit,
     onStepVertex: (Int) -> Unit,
+    onMoveVertex: (vertexIndex: Int, newPos: FractionalPoint) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     InfoCard(title = paddock.label, modifier = modifier) {
@@ -423,16 +434,114 @@ private fun PaddockInfoCard(
             Spacer(Modifier.width(4.dp))
             StepButton(">") { onStepVertex(1) }
         }
+        // Exact-coordinate editor for the selected node — type a value to move
+        // the vertex there directly, rather than dragging/nudging it.
+        selectedVertexIndex?.let { idx ->
+            paddock.vertices.getOrNull(idx)?.let { vertex ->
+                VertexCoordinateEditor(
+                    paddockId = paddock.id,
+                    vertexIndex = idx,
+                    vertex = vertex,
+                    onMoveVertex = onMoveVertex,
+                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                )
+            }
+        }
         Spacer(Modifier.height(6.dp))
-        Chip(label = "+ ADD VERTEX", active = false, onClick = onAddVertex)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Chip(label = "+ ADD VERTEX", active = false, onClick = onAddVertex)
+            val canRemove = selectedVertexIndex != null && paddock.vertices.size > 3
+            Chip(label = "- REMOVE VERTEX", active = false, onClick = { if (canRemove) onRemoveVertex() })
+        }
         Text(
             text = "Inserts a node after the selected one (or the last edge), " +
                 "then selects it — enable EDIT and drag it into place.",
             color = NublarColors.LabelCream,
             style = NublarType.SystemText,
         )
+        Text(
+            text = when {
+                selectedVertexIndex == null -> "Select a node to remove it."
+                paddock.vertices.size <= 3 -> "Can't remove — a fenced paddock needs at least 3 nodes."
+                else -> "Removes the selected node from the outline."
+            },
+            color = NublarColors.LabelCream,
+            style = NublarType.SystemText,
+        )
     }
 }
+
+/**
+ * Editable X/Y fields for the selected vertex, so it can be moved to an exact
+ * fractional coordinate by typing rather than dragging. Committing a field
+ * (any parseable keystroke) immediately moves the vertex; the field's text is
+ * driven by the live vertex position whenever it doesn't have focus, so it
+ * stays in sync if the vertex moves some other way (drag, arrow-key nudge)
+ * while still letting you type freely without the value fighting your input.
+ */
+@androidx.compose.runtime.Composable
+private fun VertexCoordinateEditor(
+    paddockId: String,
+    vertexIndex: Int,
+    vertex: PaddockVertex,
+    onMoveVertex: (vertexIndex: Int, newPos: FractionalPoint) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        CoordinateField(
+            fieldKey = Triple(paddockId, vertexIndex, "x"),
+            label = "X",
+            externalValue = vertex.x,
+            onCommit = { onMoveVertex(vertexIndex, FractionalPoint(it, vertex.y)) },
+            modifier = Modifier.weight(1f),
+        )
+        CoordinateField(
+            fieldKey = Triple(paddockId, vertexIndex, "y"),
+            label = "Y",
+            externalValue = vertex.y,
+            onCommit = { onMoveVertex(vertexIndex, FractionalPoint(vertex.x, it)) },
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/** A single editable numeric field (label + text box) for one coordinate axis. */
+@androidx.compose.runtime.Composable
+private fun CoordinateField(
+    fieldKey: Any,
+    label: String,
+    externalValue: Float,
+    onCommit: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val text = remember(fieldKey) { mutableStateOf(formatCoordinate(externalValue)) }
+    val focused = remember(fieldKey) { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(fieldKey, externalValue) {
+        if (!focused.value) text.value = formatCoordinate(externalValue)
+    }
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = NublarColors.LabelCream, style = NublarType.SystemText)
+        Spacer(Modifier.width(4.dp))
+        BasicTextField(
+            value = text.value,
+            onValueChange = { new ->
+                text.value = new
+                new.toFloatOrNull()?.let { onCommit(it.coerceIn(0f, 1f)) }
+            },
+            textStyle = NublarType.SystemText.copy(color = NublarColors.StatusGreen),
+            cursorBrush = SolidColor(NublarColors.StatusGreen),
+            singleLine = true,
+            modifier = Modifier
+                .weight(1f)
+                .background(NublarColors.DarkFrame)
+                .padding(horizontal = 6.dp, vertical = 3.dp)
+                .onFocusChanged { focused.value = it.isFocused },
+        )
+    }
+}
+
+/** Formats a fractional coordinate to 4 decimal places, matching the rest of the editor's readouts. */
+private fun formatCoordinate(value: Float): String = "%.4f".format(value)
 
 /** Info card for the selected facility. */
 @androidx.compose.runtime.Composable

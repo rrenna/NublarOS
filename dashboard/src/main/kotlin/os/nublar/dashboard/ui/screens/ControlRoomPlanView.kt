@@ -55,6 +55,7 @@ import os.nublar.dashboard.ui.map.MapViewport
 import os.nublar.dashboard.data.LogEntry
 import os.nublar.dashboard.viewmodel.ControlRoomViewModel
 import os.nublar.designsystem.NublarColors
+import os.nublar.designsystem.NublarFonts
 import os.nublar.designsystem.NublarType
 
 /**
@@ -215,6 +216,7 @@ private fun SystemSecuredBanner() {
         Text(
             text = "SYSTEM SECURED",
             color = NublarColors.LabelCream,
+            fontFamily = NublarFonts.Display,
             fontWeight = FontWeight.Black,
             fontSize = 18.sp,
             fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,

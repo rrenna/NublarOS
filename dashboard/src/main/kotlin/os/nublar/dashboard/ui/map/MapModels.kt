@@ -129,6 +129,19 @@ data class FacilityMarker(
 )
 
 /**
+ * Live status for a [FacilityMarker], supplied by the caller so [IslandMap]
+ * can show it without depending on any specific facility's domain model
+ * (e.g. the East Dock or Helipad state in the `data` package): [line] is
+ * appended to the marker's hover tooltip, and [highlightColor] — when
+ * non-null — tints the icon's disc so occupancy reads at a glance, without
+ * hovering or selecting. A facility with no status supplies null.
+ */
+data class FacilityStatusInfo(
+    val line: String,
+    val highlightColor: androidx.compose.ui.graphics.Color? = null,
+)
+
+/**
  * Original, generic dinosaur silhouette categories (large biped predator,
  * small pack predator, frilled quadruped, long-neck quadruped, ostrich-like
  * runner) — not derived from any specific copyrighted character design.

@@ -70,11 +70,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import os.nublar.designsystem.NublarColors
 
-/** Loads a bundled PNG resource into an ImageBitmap. */
 /** Selection highlight colors: green = editable (edit mode on), yellow = locked (edit mode off). */
 private val SELECT_EDITABLE = Color(0xFF54D875)
 private val SELECT_LOCKED = Color(0xFFD5CD58)
 
+/** Loads a bundled PNG resource into an ImageBitmap. */
 private fun loadBitmap(resource: String): ImageBitmap {
     val bytes = object {}.javaClass.classLoader.getResourceAsStream(resource)!!.use { it.readBytes() }
     return org.jetbrains.skia.Image.makeFromEncoded(bytes).toComposeImageBitmap()
@@ -83,6 +83,7 @@ private fun loadBitmap(resource: String): ImageBitmap {
 /** All raster assets drawn by [IslandMap], loaded together on a background thread. */
 private data class MapBitmaps(
     val island: ImageBitmap,
+    val jeep: ImageBitmap,
     val skull: ImageBitmap,
     val bronto: ImageBitmap,
     val raptor: ImageBitmap,
@@ -112,6 +113,7 @@ private fun rememberMapBitmaps(): MapBitmaps? {
         bitmaps = withContext(Dispatchers.IO) {
             MapBitmaps(
                 island = loadBitmap("island.png"),
+                jeep = loadBitmap("vehicle_jeep_top.png"),
                 skull = loadBitmap("icons/dino-skull.png"),
                 bronto = loadBitmap("icons/dino/brontosaurus.png"),
                 raptor = loadBitmap("icons/dino/raptor.png"),
@@ -148,10 +150,18 @@ fun IslandMap(
     // Pure UI component: all layer data comes from the caller (screens feed it
     // from their ViewModel, which reads a repository) — no data loading here.
     facilities: List<FacilityMarker> = emptyList(),
+    // Optional live status per facility (by id) — a status line appended to its
+    // hover tooltip, and an icon-tint color so occupancy reads at a glance.
+    // Facilities with no backing status model (most of them) get null: default
+    // appearance, name-only tooltip.
+    facilityStatus: (facilityId: String) -> FacilityStatusInfo? = { null },
     dinosaurs: List<DinosaurMarker> = emptyList(),
     vehicles: List<VehicleMarker> = emptyList(),
     staff: List<StaffMarker> = emptyList(),
     paddockShapes: List<PaddockShape> = emptyList(),
+    // InGen's helicopter, while in transit and airborne over the map (null
+    // hides it — e.g. it's grounded in Costa Rica or already on the island).
+    helicopterPosition: FractionalPoint? = null,
     // Current map zoom (1f = unzoomed). Paddock markers dampen against this so
     // they grow sub-linearly with the map instead of ballooning 1:1 — see
     // drawPaddockShape. Left at 1f by the fixed-size screens (no zoom there).
@@ -265,6 +275,7 @@ fun IslandMap(
                         marker, pt(marker.position), w, bitmaps.helipad, bitmaps.visitorCenter, bitmaps.dock,
                         selected = marker.id == selectedFacilityId,
                         editMode = editMode,
+                        statusColor = facilityStatus(marker.id)?.highlightColor,
                     )
                 }
             }
@@ -288,6 +299,9 @@ fun IslandMap(
                     )
                 }
             }
+            // The helicopter is airborne over everything else on the map, so
+            // it's drawn last (topmost).
+            helicopterPosition?.let { pos -> drawHelicopter(pt(pos), bitmaps.helipad, w) }
         }
 
         // Interaction overlay: paddock/facility selection (tap), vertex
@@ -304,7 +318,20 @@ fun IslandMap(
         val tooltips: @Composable () -> Unit = {
             if (MapLayer.Facilities in activeLayers) {
                 facilities.forEach { marker ->
-                    MarkerTooltip(position = marker.position, text = marker.label, widthPx = widthPx, heightPx = heightPx)
+                    val status = facilityStatus(marker.id)
+                    val text = if (status != null) "${marker.label} — ${status.line}" else marker.label
+                    // Hit target sized off the same radius the icon is drawn
+                    // at, so it tracks the icon's on-screen size at any zoom
+                    // (rather than a size fixed in dp regardless of zoom).
+                    val radiusPx = widthPx * facilityIconRadiusFraction(marker.kind)
+                    val hitSize = with(density) { (radiusPx * 2.6f).toDp() }
+                    MarkerTooltip(
+                        position = marker.position,
+                        text = text,
+                        widthPx = widthPx,
+                        heightPx = heightPx,
+                        hitSize = hitSize,
+                    )
                 }
             }
             if (MapLayer.Dinosaurs in activeLayers) {
@@ -1017,18 +1044,22 @@ private fun DrawScope.drawFacility(
     dockIcon: ImageBitmap,
     selected: Boolean = false,
     editMode: Boolean = false,
+    // Overrides the default blue disc when the caller has live status for this
+    // facility (e.g. East Dock docked / Helipad occupied) — so occupancy reads
+    // at a glance without hovering or selecting.
+    statusColor: Color? = null,
 ) {
     // Blue disc + black border, matching the paddock species-icon style. Most
     // facility kinds get their own original silhouette; minor utility
     // structures (e.g. the maintenance shed) are just a smaller plain disc.
-    val facilityColor = Color(0xFF397FA4)
+    val facilityColor = statusColor ?: Color(0xFF397FA4)
     val icon = when (marker.kind) {
         FacilityKind.Helipad -> helipadIcon
         FacilityKind.VisitorCenter -> visitorCenterIcon
         FacilityKind.Dock -> dockIcon
         FacilityKind.MaintenanceShed -> null
     }
-    val radius = if (icon == null) w * 0.011f else w * 0.020f
+    val radius = w * facilityIconRadiusFraction(marker.kind)
     // Highlight ring when selected: green = editable (edit mode on),
     // yellow = locked (selected but not editable).
     if (selected) {
@@ -1042,6 +1073,14 @@ private fun DrawScope.drawFacility(
         drawIconDisc(center, radius, facilityColor, icon, w, iconFillFactor = 1.35f)
     }
 }
+
+/**
+ * Fraction of the map's pixel width used for a facility icon's radius —
+ * shared by [drawFacility] (drawing) and the hover tooltip (hit-target sizing)
+ * so the two always agree, regardless of zoom.
+ */
+private fun facilityIconRadiusFraction(kind: FacilityKind): Float =
+    if (kind == FacilityKind.MaintenanceShed) 0.011f else 0.020f
 
 /**
  * A colored disc + black border with a silhouette icon (tinted black) fit
@@ -1062,6 +1101,30 @@ private fun DrawScope.drawIconDisc(
     val srcW = icon.width.toFloat()
     val srcH = icon.height.toFloat()
     val scale = minOf(radius * iconFillFactor / srcW, radius * iconFillFactor / srcH)
+    val dstW = srcW * scale
+    val dstH = srcH * scale
+    drawImage(
+        image = icon,
+        dstOffset = androidx.compose.ui.unit.IntOffset(
+            (center.x - dstW / 2f).toInt(),
+            (center.y - dstH / 2f).toInt(),
+        ),
+        dstSize = IntSize(dstW.toInt(), dstH.toInt()),
+        colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.Black),
+    )
+}
+
+/**
+ * InGen's helicopter while in transit: the same silhouette used for the
+ * Helipad facility icon, drawn directly on the terrain with NO colored disc
+ * behind it (unlike [drawIconDisc]) — it's an aircraft in open air, not a
+ * ground marker.
+ */
+private fun DrawScope.drawHelicopter(center: Offset, icon: ImageBitmap, w: Float) {
+    val srcW = icon.width.toFloat()
+    val srcH = icon.height.toFloat()
+    val targetSize = w * 0.030f
+    val scale = minOf(targetSize / srcW, targetSize / srcH)
     val dstW = srcW * scale
     val dstH = srcH * scale
     drawImage(

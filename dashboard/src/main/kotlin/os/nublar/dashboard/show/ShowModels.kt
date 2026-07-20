@@ -1,5 +1,6 @@
 package os.nublar.dashboard.show
 
+import os.nublar.dashboard.data.GateStatus
 import os.nublar.dashboard.viewmodel.Screen
 
 /**
@@ -14,11 +15,26 @@ sealed interface ShowAction {
     /** Switch the active screen — e.g. flip Nedry's computer between its modes. */
     data class ShowScreen(val screen: Screen) : ShowAction
 
+    /** Select a paddock on the Island Map (null clears the selection). */
+    data class SelectPaddock(val paddockId: String?) : ShowAction
+
     /** Fail (disarm) a paddock's fence, playing the disarm animation. */
     data class FailFence(val paddockId: String) : ShowAction
 
     /** Re-arm every paddock fence (reset). */
     data object RearmAllFences : ShowAction
+
+    /**
+     * Update the raptor pen's loading bay. Null fields leave that part of the
+     * bay unchanged; [clearAlert] wipes the alert banner.
+     */
+    data class UpdateRaptorBay(
+        val gate: GateStatus? = null,
+        val loaderOffsetMeters: Int? = null,
+        val lockEngaged: Boolean? = null,
+        val alert: String? = null,
+        val clearAlert: Boolean = false,
+    ) : ShowAction
 }
 
 /** One event on the show timeline: [action] fires when playback passes [atSeconds]. */
@@ -38,18 +54,31 @@ fun formatTimecode(seconds: Double): String {
 }
 
 /**
- * A sample timeline for development, keyed to a short demo rather than a real
- * film. Replace with movie-accurate timestamps once syncing to an actual watch.
+ * Show timeline for Jurassic Park (1993). Timestamps are APPROXIMATE, measured
+ * from the start of playback including studio logos — nudge them against your
+ * cut/stream (the scrubber makes re-alignment easy).
+ *
+ * Opening scene: the raptor transfer at the pen. The gate is raised, the raptor
+ * strikes and shoves the loader back off the gate, the loading lock lets go,
+ * and the gatekeeper is attacked ("WORKER DOWN").
  */
-val DEMO_TIMELINE: List<TimedEvent> = listOf(
-    TimedEvent(5.0, "Highlight Nedry's machine", ShowAction.HighlightMachine("Dennis Nedry")),
-    TimedEvent(12.0, "Nedry → Control Room", ShowAction.ShowScreen(Screen.ControlRoomPlanView)),
-    TimedEvent(20.0, "Nedry → Animal Paddocks", ShowAction.ShowScreen(Screen.IslandMap)),
-    TimedEvent(28.0, "T. rex fence fails", ShowAction.FailFence("tyrannosaurus-paddock")),
-    TimedEvent(38.0, "Raptor pen: n/a (building)", ShowAction.FailFence("segisaurus-proceratosaurus-paddock")),
-    TimedEvent(48.0, "Nedry → Jurassic Park System", ShowAction.ShowScreen(Screen.JurassicParkSystem)),
-    TimedEvent(58.0, "Clear machine highlight", ShowAction.HighlightMachine(null)),
+val JURASSIC_PARK_TIMELINE: List<TimedEvent> = listOf(
+    // Scene setup: bring up the paddock map, focus the raptor pen.
+    TimedEvent(75.0, "Raptor transfer begins", ShowAction.ShowScreen(Screen.IslandMap)),
+    TimedEvent(77.0, "Focus raptor pen", ShowAction.SelectPaddock("raptor-paddock")),
+    // The loader is pushed against the gate and locked down.
+    TimedEvent(150.0, "Loader approaching — lock open", ShowAction.UpdateRaptorBay(lockEngaged = false)),
+    TimedEvent(168.0, "Loader docked — lock engaging", ShowAction.UpdateRaptorBay(lockEngaged = true)),
+    // The transfer goes wrong.
+    TimedEvent(195.0, "Loading gate raised", ShowAction.UpdateRaptorBay(gate = GateStatus.Opening)),
+    TimedEvent(202.0, "Loading gate open", ShowAction.UpdateRaptorBay(gate = GateStatus.Open)),
+    TimedEvent(210.0, "Raptor strikes — loader shoved", ShowAction.UpdateRaptorBay(loaderOffsetMeters = 2)),
+    TimedEvent(218.0, "Loader pushed off gate — lock fails", ShowAction.UpdateRaptorBay(loaderOffsetMeters = 4, lockEngaged = false)),
+    TimedEvent(228.0, "Gatekeeper attacked", ShowAction.UpdateRaptorBay(alert = "WORKER DOWN")),
+    // Scene ends; stand the bay back down and release the focus.
+    TimedEvent(330.0, "Bay secured", ShowAction.UpdateRaptorBay(gate = GateStatus.Closed, loaderOffsetMeters = 0, lockEngaged = true, clearAlert = true)),
+    TimedEvent(332.0, "Clear pen focus", ShowAction.SelectPaddock(null)),
 )
 
-/** Default show length (seconds) — a bit past the last demo event. */
-const val DEMO_DURATION_SECONDS: Double = 75.0
+/** Jurassic Park runtime (2h07m), in seconds. */
+const val MOVIE_DURATION_SECONDS: Double = 7620.0

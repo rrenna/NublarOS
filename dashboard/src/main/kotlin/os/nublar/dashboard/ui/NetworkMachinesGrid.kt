@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import os.nublar.dashboard.viewmodel.Screen
 import os.nublar.designsystem.NublarColors
 import os.nublar.designsystem.NublarType
+import os.nublar.designsystem.rememberBlinkOn
 import os.nublar.designsystem.SectorStatus
 import os.nublar.designsystem.components.BeveledPanel
 

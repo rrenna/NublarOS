@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import os.nublar.designsystem.NublarColors
+import os.nublar.designsystem.NublarFonts
 
 /**
  * Third Nedryland Monitor screen: the "Jurassic Park System" desktop view. A
@@ -148,14 +149,14 @@ private fun GamePanel(modifier: Modifier = Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("JURASSIC", color = Color(0xFFB5462F), fontWeight = FontWeight.Black, fontSize = 9.sp)
-            Text("Score", color = Color.White, fontSize = 9.sp)
-            Text("350", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            Text("JURASSIC", color = Color(0xFFB5462F), fontFamily = NublarFonts.Display, fontWeight = FontWeight.Black, fontSize = 9.sp)
+            Text("Score", color = Color.White, fontFamily = NublarFonts.Ui, fontSize = 9.sp)
+            Text("350", color = Color.White, fontFamily = NublarFonts.Mono, fontWeight = FontWeight.Bold, fontSize = 11.sp)
             Spacer(Modifier.width(2.dp))
             Box(
                 modifier = Modifier.background(Color(0xFFB5462F)).padding(horizontal = 4.dp, vertical = 2.dp),
             ) {
-                Text("PAUSED", color = Color.White, fontWeight = FontWeight.Black, fontSize = 9.sp)
+                Text("PAUSED", color = Color.White, fontFamily = NublarFonts.Ui, fontWeight = FontWeight.Black, fontSize = 9.sp)
             }
         }
     }

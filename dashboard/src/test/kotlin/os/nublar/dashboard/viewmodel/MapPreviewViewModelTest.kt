@@ -1,5 +1,6 @@
 package os.nublar.dashboard.viewmodel
 
+import os.nublar.dashboard.data.DEFAULT_TOUR_CARS
 import os.nublar.dashboard.data.IslaNublarRepository
 import os.nublar.dashboard.data.LogEntry
 import os.nublar.dashboard.ui.map.DinosaurMarker
@@ -48,6 +49,7 @@ private class FakeRepository : IslaNublarRepository {
     override fun fences() = emptyList<FenceSegment>()
     override fun paddockRecipes() = emptyList<PaddockRecipe>()
     override fun glitchesLog() = emptyList<LogEntry>()
+    override fun tourCars() = DEFAULT_TOUR_CARS
 }
 
 private fun viewModel(

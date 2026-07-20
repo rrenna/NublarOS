@@ -41,6 +41,9 @@ interface IslaNublarRepository {
     fun fences(): List<FenceSegment>
     fun paddockRecipes(): List<PaddockRecipe>
     fun glitchesLog(): List<LogEntry>
+
+    /** The tour-car fleet's starting state. Must be non-empty. */
+    fun tourCars(): List<TourCar>
 }
 
 /**
@@ -58,4 +61,7 @@ class BundledIslaNublarRepository : IslaNublarRepository {
 
     override fun glitchesLog(): List<LogEntry> =
         loadCollection<GlitchesLogCollection>("glitches-log.json")?.entries ?: emptyList()
+
+    // In-code defaults today; becomes a JSON file when the fleet needs authoring.
+    override fun tourCars(): List<TourCar> = DEFAULT_TOUR_CARS
 }

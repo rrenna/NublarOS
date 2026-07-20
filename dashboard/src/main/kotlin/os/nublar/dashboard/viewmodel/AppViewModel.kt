@@ -72,7 +72,13 @@ class AppViewModel(
 
     fun navigateTo(target: Screen) {
         screen = target
-        persistScreen(target.name)
+        // Utility screens aren't persisted: relaunching restores the last
+        // MAIN screen rather than dropping the user back into Settings.
+        if (target !in TRANSIENT_SCREENS) persistScreen(target.name)
+    }
+
+    private companion object {
+        val TRANSIENT_SCREENS = setOf(Screen.Settings, Screen.ShowSync)
     }
 
     fun updateFullscreen(value: Boolean) {

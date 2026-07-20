@@ -120,17 +120,8 @@ const val ISLA_NUBLAR_DATA_DIR = "data/isla-nublar"
  * absent or malformed (these files are hand-edited via the map editor, so a
  * bad edit must not crash the app during composition).
  */
-fun loadPaddockCollection(): PaddockCollection {
-    val stream = object {}.javaClass.classLoader.getResourceAsStream("$ISLA_NUBLAR_DATA_DIR/paddocks.json")
-        ?: return PaddockCollection()
-    val text = stream.bufferedReader().use { it.readText() }
-    return try {
-        PaddockJson.decodeFromString(text)
-    } catch (e: SerializationException) {
-        System.err.println("Ignoring malformed paddocks.json: ${e.message}")
-        PaddockCollection()
-    }
-}
+fun loadPaddockCollection(): PaddockCollection =
+    loadCollection<PaddockCollection>("paddocks.json") ?: PaddockCollection()
 
 /** Serializes a paddock collection back to pretty JSON (for the editor's Copy-JSON action). */
 fun PaddockCollection.toJson(): String = PaddockJson.encodeToString(this)
@@ -139,20 +130,11 @@ fun PaddockCollection.toJson(): String = PaddockJson.encodeToString(this)
  * Loads [ISLA_NUBLAR_DATA_DIR]/facilities.json. Coordinates are canvas-fraction
  * (used directly, no warp). Returns an empty list if absent or malformed.
  */
-fun loadFacilities(): List<FacilityMarker> {
-    val stream = object {}.javaClass.classLoader.getResourceAsStream("$ISLA_NUBLAR_DATA_DIR/facilities.json")
-        ?: return emptyList()
-    val text = stream.bufferedReader().use { it.readText() }
-    val collection: FacilityCollection = try {
-        PaddockJson.decodeFromString(text)
-    } catch (e: SerializationException) {
-        System.err.println("Ignoring malformed facilities.json: ${e.message}")
-        return emptyList()
-    }
-    return collection.facilities.map {
-        FacilityMarker(it.id, it.label, it.kind, FractionalPoint(it.x, it.y))
-    }
-}
+fun loadFacilities(): List<FacilityMarker> =
+    loadCollection<FacilityCollection>("facilities.json")
+        ?.facilities
+        ?.map { FacilityMarker(it.id, it.label, it.kind, FractionalPoint(it.x, it.y)) }
+        ?: emptyList()
 
 /** Serializes facility markers back to pretty JSON (for the editor's Copy-JSON action). */
 fun List<FacilityMarker>.facilitiesToJson(): String {
@@ -166,20 +148,11 @@ fun List<FacilityMarker>.facilitiesToJson(): String {
  * Loads [ISLA_NUBLAR_DATA_DIR]/vehicles.json. Coordinates are canvas-fraction
  * (used directly, no warp). Returns an empty list if absent or malformed.
  */
-fun loadVehicles(): List<VehicleMarker> {
-    val stream = object {}.javaClass.classLoader.getResourceAsStream("$ISLA_NUBLAR_DATA_DIR/vehicles.json")
-        ?: return emptyList()
-    val text = stream.bufferedReader().use { it.readText() }
-    val collection: VehicleCollection = try {
-        PaddockJson.decodeFromString(text)
-    } catch (e: SerializationException) {
-        System.err.println("Ignoring malformed vehicles.json: ${e.message}")
-        return emptyList()
-    }
-    return collection.vehicles.map {
-        VehicleMarker(it.id, FractionalPoint(it.x, it.y), it.headingDegrees)
-    }
-}
+fun loadVehicles(): List<VehicleMarker> =
+    loadCollection<VehicleCollection>("vehicles.json")
+        ?.vehicles
+        ?.map { VehicleMarker(it.id, FractionalPoint(it.x, it.y), it.headingDegrees) }
+        ?: emptyList()
 
 /** Serializes vehicle markers back to pretty JSON (for editor Copy-JSON / round-trips). */
 fun List<VehicleMarker>.vehiclesToJson(): String {

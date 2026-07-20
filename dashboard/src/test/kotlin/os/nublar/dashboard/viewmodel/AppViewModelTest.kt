@@ -38,13 +38,34 @@ class AppViewModelTest {
     }
 
     @Test
-    fun `toggleFullscreen flips the flag`() {
-        val vm = AppViewModel(restoreScreen = { null }, persistScreen = {})
-        assertFalse(vm.isFullscreen)
-        vm.toggleFullscreen()
-        assertTrue(vm.isFullscreen)
-        vm.toggleFullscreen()
-        assertFalse(vm.isFullscreen)
+    fun `updateFullscreen stores and persists the flag`() {
+        var persisted: Boolean? = null
+        val vm = AppViewModel(
+            restoreScreen = { null },
+            persistScreen = {},
+            restoreFullscreen = { false },
+            persistFullscreen = { persisted = it },
+        )
+        assertFalse(vm.fullscreen)
+        vm.updateFullscreen(true)
+        assertTrue(vm.fullscreen)
+        assertEquals(true, persisted)
+        vm.updateFullscreen(false)
+        assertFalse(vm.fullscreen)
+        assertEquals(false, persisted)
+    }
+
+    @Test
+    fun `transient screens are shown but not persisted`() {
+        var persisted: String? = null
+        val vm = AppViewModel(restoreScreen = { null }, persistScreen = { persisted = it })
+
+        vm.navigateTo(Screen.IslandMap)
+        vm.navigateTo(Screen.Settings)
+
+        assertEquals(Screen.Settings, vm.screen)
+        // Relaunch would restore the last MAIN screen, not Settings.
+        assertEquals(Screen.IslandMap.name, persisted)
     }
 
     @Test

@@ -200,6 +200,26 @@ class MapPreviewViewModel(
         selectedVertexIndex = i + 1
     }
 
+    /**
+     * Removes the selected vertex from its paddock. A fenced paddock needs at
+     * least 3 vertices to remain a polygon, so this is a no-op below that (and
+     * with no vertex selected). Clears the vertex selection afterward — the
+     * removed index no longer exists.
+     */
+    fun removeSelectedVertex() {
+        val id = selectedPaddockId ?: return
+        val idx = selectedVertexIndex ?: return
+        val shape = selectedPaddock ?: return
+        if (shape.vertices.size <= 3) return
+        collection = collection.copy(
+            paddocks = collection.paddocks.map { s ->
+                if (s.id == id) s.copy(vertices = s.vertices.toMutableList().apply { removeAt(idx) })
+                else s
+            },
+        )
+        selectedVertexIndex = null
+    }
+
     /** JSON for the editor's Copy-JSON chip: facilities when one is selected, else paddocks. */
     fun copyJsonText(): String =
         if (selectedFacilityId != null) facilities.facilitiesToJson() else collection.toJson()

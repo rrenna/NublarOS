@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import os.nublar.designsystem.NublarColors
+import os.nublar.designsystem.NublarFonts
 import os.nublar.designsystem.ScreenShader
 
 /**
@@ -47,7 +48,7 @@ fun SettingsView(
             .padding(16.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("SETTINGS", color = NublarColors.LabelCream, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text("SETTINGS", color = NublarColors.LabelCream, fontFamily = NublarFonts.Display, fontWeight = FontWeight.Bold, fontSize = 20.sp)
 
             Column(
                 modifier = Modifier

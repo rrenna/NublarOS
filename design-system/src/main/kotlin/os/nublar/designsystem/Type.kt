@@ -2,34 +2,31 @@ package os.nublar.designsystem
 
 import androidx.compose.material.Typography
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
  * Three typographic roles, per design/typography.md:
  * headers (Oswald), system text (JetBrains Mono), display (Archivo Black).
- *
- * Font families are loaded at runtime from bundled OFL-licensed assets
- * (see design-system/src/main/resources/fonts) rather than hardcoded here;
- * FontFamily.Default is a placeholder until those are wired up.
+ * All three are OFL-licensed and bundled under
+ * design-system/src/main/resources/fonts — see [NublarFonts].
  */
 object NublarType {
     val Header = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = NublarFonts.Ui,
         fontWeight = FontWeight.Medium,
         fontSize = 14.sp,
         letterSpacing = 0.5.sp,
     )
 
     val SystemText = TextStyle(
-        fontFamily = FontFamily.Monospace,
+        fontFamily = NublarFonts.Mono,
         fontWeight = FontWeight.Normal,
         fontSize = 13.sp,
     )
 
     val Display = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = NublarFonts.Display,
         fontWeight = FontWeight.Black,
         fontSize = 28.sp,
         letterSpacing = 1.sp,

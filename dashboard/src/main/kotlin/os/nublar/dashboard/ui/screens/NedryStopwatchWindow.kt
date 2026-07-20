@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import os.nublar.designsystem.NublarFonts
 import kotlin.math.roundToInt
 
 /** Formats seconds as the stopwatch's HH:MM:SS.t (tenths) display. */
@@ -149,7 +150,7 @@ private fun TitleBar(title: String, onClose: () -> Unit, onDrag: (Offset) -> Uni
         )
         // Title, on a white plate so the stripes don't run through it.
         Box(modifier = Modifier.background(Color(0xFFDDDDDD)).padding(horizontal = 8.dp)) {
-            Text(title, color = Color.Black, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(title, color = Color.Black, fontFamily = NublarFonts.Ui, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, fontWeight = FontWeight.Bold, fontSize = 12.sp)
         }
     }
 }

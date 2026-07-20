@@ -29,8 +29,18 @@ import os.nublar.dashboard.ui.SecurityCamPanel
 import os.nublar.dashboard.ui.screens.ControlRoomPlanView
 import os.nublar.dashboard.ui.screens.IslandMapView
 import os.nublar.dashboard.ui.map.PaddockEnclosure
-import os.nublar.dashboard.show.DEMO_DURATION_SECONDS
-import os.nublar.dashboard.show.DEMO_TIMELINE
+import os.nublar.dashboard.data.DockStatus
+import os.nublar.dashboard.data.GateStatus
+import os.nublar.dashboard.data.HelicopterLocation
+import os.nublar.dashboard.data.HelipadStatus
+import os.nublar.dashboard.data.INGEN_HELICOPTER
+import os.nublar.dashboard.data.MAINTENANCE_SHED_BREAKER_COUNT
+import os.nublar.dashboard.data.MaintenanceShedStatus
+import os.nublar.dashboard.data.Ship
+import os.nublar.dashboard.data.VisitorCenterStatus
+import os.nublar.dashboard.ui.map.FractionalPoint
+import os.nublar.dashboard.show.JURASSIC_PARK_TIMELINE
+import os.nublar.dashboard.show.MOVIE_DURATION_SECONDS
 import os.nublar.dashboard.show.ShowAction
 import os.nublar.dashboard.show.ShowClock
 import os.nublar.dashboard.show.ShowController
@@ -69,12 +79,21 @@ fun main() {
         val appViewModel = remember { AppViewModel() }
         // Show-sync engine: fires timed events into the app's high-level actions.
         val showController = remember {
-            ShowController(DEMO_TIMELINE, DEMO_DURATION_SECONDS) { action ->
+            ShowController(JURASSIC_PARK_TIMELINE, MOVIE_DURATION_SECONDS) { action ->
                 when (action) {
                     is ShowAction.HighlightMachine -> appViewModel.highlightMachine(action.machine)
                     is ShowAction.ShowScreen -> appViewModel.navigateTo(action.screen)
+                    is ShowAction.SelectPaddock -> islandMapViewModel.selectPaddock(action.paddockId)
                     is ShowAction.FailFence -> islandMapViewModel.failFence(action.paddockId)
                     ShowAction.RearmAllFences -> islandMapViewModel.rearmAllFences()
+                    is ShowAction.UpdateRaptorBay -> islandMapViewModel.updateLoadingBay { bay ->
+                        bay.copy(
+                            gate = action.gate ?: bay.gate,
+                            loaderOffsetMeters = action.loaderOffsetMeters ?: bay.loaderOffsetMeters,
+                            lockEngaged = action.lockEngaged ?: bay.lockEngaged,
+                            alert = if (action.clearAlert) null else action.alert ?: bay.alert,
+                        )
+                    }
                 }
             }
         }
@@ -118,6 +137,243 @@ fun main() {
                             }
                         Separator()
                         Item("Re-arm All Fences", onClick = { islandMapViewModel.rearmAllFences() })
+                    }
+                    // Toggle each tour car's headlights (checked = on). The
+                    // Vehicle Status panel's beams/indicator follow the model.
+                    Menu("Headlights") {
+                        islandMapViewModel.tourCars.forEach { car ->
+                            CheckboxItem(
+                                car.label,
+                                checked = car.headlightsOn,
+                                onCheckedChange = { islandMapViewModel.setCarHeadlights(car.id, it) },
+                            )
+                        }
+                    }
+                    // Toggle each tour car's comms (checked = responding). An
+                    // unchecked car shows the red "Not Responding" flag.
+                    Menu("Vehicle Response") {
+                        islandMapViewModel.tourCars.forEach { car ->
+                            CheckboxItem(
+                                car.label,
+                                checked = car.responding,
+                                onCheckedChange = { islandMapViewModel.setCarResponding(car.id, it) },
+                            )
+                        }
+                    }
+                    // Manually drive the raptor pen's loading-bay incident (the
+                    // same states the show timeline scripts for the opening scene).
+                    Menu("Raptor Pen") {
+                        Item(
+                            "Open Loading Gate",
+                            onClick = { islandMapViewModel.updateLoadingBay { it.copy(gate = GateStatus.Open) } },
+                        )
+                        Item(
+                            "Raptor Strike (shove loader)",
+                            onClick = {
+                                islandMapViewModel.updateLoadingBay {
+                                    it.copy(loaderOffsetMeters = it.loaderOffsetMeters + 2)
+                                }
+                            },
+                        )
+                        Item(
+                            "Loading Lock Failure",
+                            onClick = { islandMapViewModel.updateLoadingBay { it.copy(lockEngaged = false) } },
+                        )
+                        Item(
+                            "Engage Loading Lock",
+                            onClick = { islandMapViewModel.updateLoadingBay { it.copy(lockEngaged = true) } },
+                        )
+                        Item(
+                            "Worker Down",
+                            onClick = { islandMapViewModel.updateLoadingBay { it.copy(alert = "WORKER DOWN") } },
+                        )
+                        Separator()
+                        Item("Reset Bay", onClick = { islandMapViewModel.resetLoadingBay() })
+                    }
+                    // Manually drive the East Dock's berth status and which
+                    // ship (if any) is present — the model backing the East
+                    // Dock status panel shown when that facility is selected.
+                    Menu("East Dock") {
+                        Item(
+                            "Ship Approaching",
+                            onClick = { islandMapViewModel.updateEastDock { it.copy(status = DockStatus.Docking) } },
+                        )
+                        Item(
+                            "Dock Ship",
+                            onClick = {
+                                islandMapViewModel.updateEastDock {
+                                    it.copy(
+                                        status = DockStatus.Docked,
+                                        ship = Ship(id = "supply-01", name = "SS Nublar Runner"),
+                                    )
+                                }
+                            },
+                        )
+                        Item(
+                            "Ship Departs",
+                            onClick = {
+                                islandMapViewModel.updateEastDock {
+                                    it.copy(status = DockStatus.Departing)
+                                }
+                            },
+                        )
+                        Item(
+                            "Clear Berth",
+                            onClick = { islandMapViewModel.updateEastDock { it.copy(status = DockStatus.Empty, ship = null) } },
+                        )
+                        Separator()
+                        Item("Reset Dock", onClick = { islandMapViewModel.resetEastDock() })
+                    }
+                    // Move InGen's helicopter between Costa Rica, in transit
+                    // (with live coordinates, plotted on the map), and on the
+                    // island — the model backing its map marker.
+                    Menu("Helicopter") {
+                        Item(
+                            "Depart Costa Rica",
+                            onClick = {
+                                islandMapViewModel.updateHelicopter {
+                                    it.copy(
+                                        location = HelicopterLocation.InTransit,
+                                        position = FractionalPoint(0.02f, 0.75f),
+                                    )
+                                }
+                            },
+                        )
+                        Item(
+                            "Advance Halfway",
+                            onClick = {
+                                islandMapViewModel.updateHelicopter {
+                                    it.copy(position = FractionalPoint(0.30f, 0.55f))
+                                }
+                            },
+                        )
+                        Item(
+                            "Arrive on Island",
+                            onClick = {
+                                islandMapViewModel.updateHelicopter {
+                                    it.copy(location = HelicopterLocation.OnIsland, position = null)
+                                }
+                            },
+                        )
+                        Separator()
+                        Item("Reset to Costa Rica", onClick = { islandMapViewModel.resetHelicopter() })
+                    }
+                    // Manually drive the Helipad's landing status and which
+                    // helicopter (if any) is present — the model backing the
+                    // Helipad status panel shown when that facility is selected.
+                    Menu("Helipad") {
+                        Item(
+                            "Helicopter Approaching",
+                            onClick = { islandMapViewModel.updateHelipad { it.copy(status = HelipadStatus.Landing) } },
+                        )
+                        Item(
+                            "Touch Down",
+                            onClick = {
+                                islandMapViewModel.updateHelipad {
+                                    it.copy(status = HelipadStatus.Occupied, helicopter = INGEN_HELICOPTER)
+                                }
+                            },
+                        )
+                        Item(
+                            "Helicopter Departs",
+                            onClick = { islandMapViewModel.updateHelipad { it.copy(status = HelipadStatus.Departing) } },
+                        )
+                        Item(
+                            "Clear Pad",
+                            onClick = {
+                                islandMapViewModel.updateHelipad { it.copy(status = HelipadStatus.Empty, helicopter = null) }
+                            },
+                        )
+                        Separator()
+                        Item("Reset Pad", onClick = { islandMapViewModel.resetHelipad() })
+                    }
+                    // Manually drive the Visitor Center's operational status
+                    // and on-site occupancy — the model backing the Visitor
+                    // Center status panel shown when that facility is selected.
+                    Menu("Visitor Center") {
+                        Item(
+                            "Set Operational",
+                            onClick = {
+                                islandMapViewModel.updateVisitorCenter {
+                                    it.copy(status = VisitorCenterStatus.Operational)
+                                }
+                            },
+                        )
+                        Item(
+                            "Lockdown",
+                            onClick = {
+                                islandMapViewModel.updateVisitorCenter { it.copy(status = VisitorCenterStatus.Lockdown) }
+                            },
+                        )
+                        Item(
+                            "Power Failure",
+                            onClick = {
+                                islandMapViewModel.updateVisitorCenter {
+                                    it.copy(status = VisitorCenterStatus.PowerFailure)
+                                }
+                            },
+                        )
+                        Item(
+                            "Evacuate (mark unoccupied)",
+                            onClick = { islandMapViewModel.updateVisitorCenter { it.copy(occupied = false) } },
+                        )
+                        Item(
+                            "Staff Return",
+                            onClick = { islandMapViewModel.updateVisitorCenter { it.copy(occupied = true) } },
+                        )
+                        Separator()
+                        Item("Reset Visitor Center", onClick = { islandMapViewModel.resetVisitorCenter() })
+                    }
+                    // Manually drive the Maintenance Shed's repair status and
+                    // which tour vehicle (if any) is in the bay — the model
+                    // backing the Maintenance Shed status panel shown when
+                    // that facility is selected.
+                    Menu("Maintenance Shed") {
+                        islandMapViewModel.tourCars.forEach { car ->
+                            Item(
+                                "Bring In ${car.label}",
+                                onClick = {
+                                    islandMapViewModel.updateMaintenanceShed {
+                                        it.copy(status = MaintenanceShedStatus.Repairing, vehicle = car)
+                                    }
+                                },
+                            )
+                        }
+                        Item(
+                            "Vehicle Repaired (clear bay)",
+                            onClick = {
+                                islandMapViewModel.updateMaintenanceShed {
+                                    it.copy(status = MaintenanceShedStatus.Idle, vehicle = null)
+                                }
+                            },
+                        )
+                        Item(
+                            "Shed Offline (power down)",
+                            onClick = {
+                                islandMapViewModel.updateMaintenanceShed {
+                                    it.copy(
+                                        status = MaintenanceShedStatus.Offline,
+                                        breakers = List(MAINTENANCE_SHED_BREAKER_COUNT) { false },
+                                    )
+                                }
+                            },
+                        )
+                        Separator()
+                        Item("Reset Shed", onClick = { islandMapViewModel.resetMaintenanceShed() })
+                    }
+                    // Adjust the tracked Explorer's speed; the status panel's
+                    // mph badge and roadway-dot animation follow the model.
+                    val tracked = islandMapViewModel.trackedCar
+                    Menu("Speed (${tracked.label}: ${tracked.speedMph} mph)") {
+                        Item(
+                            "Speed Up (+1 mph)",
+                            onClick = { islandMapViewModel.setCarSpeed(tracked.id, tracked.speedMph + 1) },
+                        )
+                        Item(
+                            "Speed Down (-1 mph)",
+                            enabled = tracked.speedMph > 0,
+                            onClick = { islandMapViewModel.setCarSpeed(tracked.id, tracked.speedMph - 1) },
+                        )
                     }
                 }
                 Menu("View") {

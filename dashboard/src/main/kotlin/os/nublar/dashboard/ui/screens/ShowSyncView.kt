@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import os.nublar.dashboard.show.ShowController
 import os.nublar.dashboard.show.TimedEvent
 import os.nublar.dashboard.show.formatTimecode
+import os.nublar.dashboard.show.launchMovie
 import os.nublar.designsystem.NublarColors
 
 /**
@@ -60,8 +61,18 @@ fun ShowSyncView(controller: ShowController, onClose: () -> Unit) {
 
             Scrubber(controller)
 
-            // Transport controls.
+            // Transport controls. LAUNCH FILM opens the movie in the macOS TV
+            // app (deep link) and starts the sync clock in the same press;
+            // scrub afterward to fine-align if playback took a moment to start.
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ChunkyButton(
+                    "LAUNCH FILM",
+                    modifier = Modifier.width(120.dp),
+                    onClick = {
+                        launchMovie()
+                        controller.play()
+                    },
+                )
                 ChunkyButton(
                     if (controller.playing) "PAUSE" else "PLAY",
                     modifier = Modifier.width(120.dp),
